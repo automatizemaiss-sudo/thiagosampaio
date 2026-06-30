@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TS Nutrição — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --accent:       #C4A96A;
+    --accent-dark:  #8C6F3C;
+    --accent-glow:  rgba(196,169,106,0.18);
+    --black:     #0B1812;
+    --surface:   #12241B;
+    --surface2:  #1A3326;
+    --surface3:  #234231;
+    --border:    rgba(237,232,216,0.08);
+    --border-accent:rgba(196,169,106,0.35);
+    --text:      #EDE8D8;
+    --text-dim:  #9FB3A4;
+    --text-muted:#4C5C50;
+    --green:     #22c55e;
+    --amber:     #f59e0b;
+    --blue:      #60a5fa;
+    --purple:    #a78bfa;
+    --danger:    #C0392B;
+    --danger-glow: rgba(192,57,43,0.16);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative;
+    padding: 22px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap;
+    background: linear-gradient(180deg, rgba(196,169,106,0.06) 0%, transparent 100%);
+  }
+
+  .logo-area { display: flex; align-items: center; gap: 14px; }
+
+  .logo-icon {
+    width: 40px; height: 40px; background: var(--accent);
+    border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-family: 'Libre Baskerville', serif; font-style: italic; font-weight: 700;
+    font-size: 16px; letter-spacing: -1px; color: var(--black);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  h1 { font-family: 'Libre Baskerville', serif; font-weight: 700; font-size: 24px; letter-spacing: 1.5px; line-height: 1; }
+  h1 span { color: var(--accent); font-style: italic; font-weight: 400; }
+
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
+  .status-label { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
+
+  .btn-sync {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 16px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text-dim); font-family: 'Outfit', sans-serif;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .btn-sync:hover { border-color: var(--border-accent); color: var(--text); background: rgba(196,169,106,0.08); }
+  .btn-sync.loading { opacity: 0.6; pointer-events: none; }
+  .btn-sync.loading svg { animation: spin 0.8s linear infinite; }
+  .btn-sync.success { border-color: rgba(34,197,94,0.5); color: var(--green); background: rgba(34,197,94,0.06); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  @keyframes spin  { to { transform: rotate(360deg); } }
+
+  /* ── GLOBAL DATE BAR ── */
+  .global-date-bar {
+    position: relative; z-index: 11;
+    padding: 10px 40px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .global-date-bar .date-label {
+    font-size: 11px; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace; letter-spacing: 1px;
+  }
+
+  /* ── MAIN TABS ── */
+  .main-tabs {
+    position: relative; z-index: 10;
+    padding: 0 40px;
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--black);
+    overflow-x: auto;
+  }
+
+  .main-tab {
+    padding: 14px 22px;
+    border: none; border-bottom: 2px solid transparent;
+    background: transparent; color: var(--text-dim);
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.18s; letter-spacing: 1px;
+    display: flex; align-items: center; gap: 7px; white-space: nowrap; flex-shrink: 0;
+  }
+  .main-tab:hover { color: var(--text); }
+  .main-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* ── CONTROLS ── */
+  .controls {
+    position: relative; z-index: 10;
+    padding: 14px 40px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .seg-tabs {
+    display: flex; gap: 3px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 4px;
+  }
+
+  .seg-tab {
+    padding: 7px 15px; border-radius: 7px; border: none;
+    background: transparent; color: var(--text-dim);
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.18s; white-space: nowrap;
+  }
+  .seg-tab:hover { color: var(--text); background: var(--surface3); }
+  .seg-tab.active { background: var(--accent); color: var(--black); box-shadow: 0 0 16px var(--accent-glow); }
+
+  .view-toggle {
+    display: flex; gap: 3px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 4px;
+  }
+
+  .view-btn {
+    padding: 7px 13px; border-radius: 7px; border: 1px solid transparent;
+    background: transparent; color: var(--text-dim);
+    font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.18s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .view-btn:hover { color: var(--text); background: var(--surface3); }
+  .view-btn.active { background: var(--surface3); color: var(--text); border-color: var(--border-accent); }
+
+  .date-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .date-label { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
+
+  input[type="date"] {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    padding: 7px 12px; outline: none; transition: border-color 0.2s; cursor: pointer;
+  }
+  input[type="date"]:focus { border-color: var(--accent); }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+
+  .btn-apply {
+    padding: 8px 18px; background: var(--accent); border: none;
+    border-radius: 8px; color: var(--black); font-family: 'Outfit', sans-serif;
+    font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.18s;
+    box-shadow: 0 0 14px var(--accent-glow);
+  }
+  .btn-apply:hover { background: var(--accent-dark); transform: translateY(-1px); }
+
+  /* ── SUB-TABS DE FUNIL ── */
+  .funil-bar {
+    position: relative; z-index: 9;
+    padding: 0 40px;
+    display: flex; align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    overflow-x: auto;
+  }
+
+  .funil-bar-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 2px;
+    color: var(--text-muted); text-transform: uppercase;
+    padding-right: 16px; white-space: nowrap; flex-shrink: 0;
+    border-right: 1px solid var(--border); margin-right: 6px;
+  }
+
+  .funil-tab {
+    padding: 10px 18px;
+    border: none; border-bottom: 2px solid transparent;
+    background: transparent; color: var(--text-dim);
+    font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.18s; white-space: nowrap; flex-shrink: 0;
+  }
+  .funil-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .funil-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .funil-tab.funil-todos.active { color: var(--text); border-bottom-color: var(--text-dim); }
+
+  /* ── TOOLTIP (?) ── */
+  .info-wrap { position: relative; display: inline-flex; align-items: center; }
+  .info-btn {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 1px solid var(--text-muted); background: transparent; color: var(--text-muted);
+    font-size: 8px; font-weight: 700; line-height: 1;
+    cursor: default; display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: border-color 0.15s, color 0.15s;
+    font-family: 'Outfit', sans-serif; user-select: none;
+  }
+  .info-wrap:hover .info-btn { border-color: var(--text-dim); color: var(--text-dim); }
+  .info-tooltip {
+    display: none; position: absolute; top: calc(100% + 10px); left: 0;
+    background: var(--surface3); border: 1px solid var(--border-accent);
+    border-radius: 10px; padding: 12px 15px; width: 240px;
+    font-family: 'Outfit', sans-serif; font-size: 12px; line-height: 1.6;
+    color: var(--text-dim); z-index: 200; pointer-events: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  .info-tooltip::after {
+    content: ''; position: absolute; bottom: 100%; left: 14px;
+    border: 6px solid transparent; border-bottom-color: var(--border-accent);
+  }
+  .info-tooltip strong {
+    display: block; color: var(--text); font-size: 10px; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace;
+  }
+  .info-tooltip ul { margin: 6px 0 0 14px; padding: 0; }
+  .info-tooltip ul li { margin-bottom: 2px; }
+  .info-wrap:hover .info-tooltip { display: block; }
+  .tab-tooltip { left: 50%; transform: translateX(-50%); }
+  .tab-tooltip::after { left: 50%; transform: translateX(-50%); }
+  .tab-tooltip-right { left: 0; transform: none; }
+  .tab-tooltip-right::after { left: 14px; transform: none; }
+  .card-info-wrap { position: absolute; top: 14px; right: 14px; z-index: 10; }
+  .card-tooltip { left: auto; right: 0; transform: none; width: 220px; }
+  .card-tooltip::after { left: auto; right: 14px; transform: none; }
+
+  /* ── MAIN ── */
+  main { position: relative; z-index: 1; padding: 26px 40px; display: flex; flex-direction: column; gap: 26px; }
+
+  /* ── CARDS ── */
+  .cards-section { display: flex; flex-direction: column; gap: 10px; }
+  .cards-section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .cards-section-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 3px; color: var(--text-muted); text-transform: uppercase; }
+
+  .btn-toggle-secondary {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text-dim); font-family: 'Outfit', sans-serif;
+    font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.18s;
+  }
+  .btn-toggle-secondary:hover { border-color: var(--border-accent); color: var(--text); }
+  .btn-toggle-secondary.active { border-color: var(--border-accent); color: var(--text); background: rgba(196,169,106,0.08); }
+
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 12px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px; position: relative; overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); opacity: 0; transition: opacity 0.2s; }
+  .card:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+  .card:hover::before { opacity: 1; }
+  .card.highlight { border-color: var(--border-accent); background: linear-gradient(135deg, var(--surface) 0%, rgba(196,169,106,0.05) 100%); }
+  .card.highlight::before { opacity: 1; }
+  .card.green-highlight { border-color: rgba(34,197,94,0.35); background: linear-gradient(135deg, var(--surface) 0%, rgba(34,197,94,0.05) 100%); }
+  .card.green-highlight::before { background: var(--green); opacity: 1; }
+  .card.blue-highlight { border-color: rgba(96,165,250,0.35); background: linear-gradient(135deg, var(--surface) 0%, rgba(96,165,250,0.05) 100%); }
+  .card.blue-highlight::before { background: var(--blue); opacity: 1; }
+  .card.amber-highlight { border-color: rgba(245,158,11,0.35); background: linear-gradient(135deg, var(--surface) 0%, rgba(245,158,11,0.05) 100%); }
+  .card.amber-highlight::before { background: var(--amber); opacity: 1; }
+  .card.purple-highlight { border-color: rgba(167,139,250,0.35); background: linear-gradient(135deg, var(--surface) 0%, rgba(167,139,250,0.05) 100%); }
+  .card.purple-highlight::before { background: var(--purple); opacity: 1; }
+
+  .secondary-block { display: none; flex-direction: column; gap: 10px; }
+  .secondary-block.visible { display: flex; }
+
+  .card-icon { font-size: 16px; margin-bottom: 10px; display: block; }
+  .card-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500; margin-bottom: 5px; }
+  .card-value { font-family: 'Libre Baskerville', serif; font-weight: 700; font-size: 34px; line-height: 1; color: var(--text); }
+  .card-value.is-rate { font-size: 30px; color: var(--accent); }
+  .card-value.is-money { font-size: 26px; color: var(--green); }
+  .card-value.is-money-red { font-size: 26px; color: var(--accent); }
+  .card-value.na { font-size: 26px; color: var(--text-muted); }
+  .card-sub { font-size: 11px; color: var(--text-muted); margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+  .card-note { font-size: 10px; color: var(--amber); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+
+  .extras-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .extras-row .card { flex: 1; min-width: 170px; max-width: 260px; border-color: rgba(245,158,11,0.2); overflow: visible; }
+  .extras-row .card::before { background: var(--amber); }
+  .extras-row .card:hover { border-color: rgba(245,158,11,0.45); }
+
+  /* ── TABLE ── */
+  #tableView { display: none; }
+  #tableView.visible { display: block; }
+
+  .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: var(--surface2); border-bottom: 1px solid var(--border-accent); }
+  thead th { padding: 12px 14px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: var(--text-dim); text-transform: uppercase; white-space: nowrap; font-weight: 600; }
+  thead th:first-child { color: var(--accent); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 9px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); }
+  tbody td:first-child { color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+  td.val-red { color: var(--accent); font-weight: 600; }
+  td.val-green { color: var(--green); }
+  td.val-na { color: var(--text-muted); font-style: italic; }
+  td.val-blue { color: var(--blue); }
+  td.val-purple { color: var(--purple); }
+  tfoot tr { border-top: 1px solid var(--border-accent); background: var(--surface2); }
+  tfoot td { padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; }
+  tfoot td:first-child { color: var(--accent); font-size: 10px; letter-spacing: 2px; }
+
+  /* ── CHART ── */
+  .chart-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .chart-header { padding: 18px 22px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .chart-title { font-family: 'Libre Baskerville', serif; font-weight: 700; font-style: italic; font-size: 17px; letter-spacing: 0.5px; }
+  .toggles { display: flex; gap: 6px; flex-wrap: wrap; }
+  .metric-toggle { display: flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; font-size: 11px; font-weight: 500; color: var(--text-dim); transition: all 0.18s; user-select: none; white-space: nowrap; }
+  .metric-toggle .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .metric-toggle.active { border-color: transparent; color: var(--text); }
+  .chart-body { padding: 18px 22px 22px; height: 300px; position: relative; }
+
+  /* ── FUNNEL ── */
+  .funnel-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 8px; }
+  .funnel-title { font-family: 'Libre Baskerville', serif; font-weight: 700; font-style: italic; font-size: 17px; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .funnel-step { display: flex; align-items: center; gap: 14px; }
+  .funnel-bar-wrap { flex: 1; position: relative; height: 42px; display: flex; align-items: center; }
+  .funnel-bar-bg { position: absolute; inset: 0; background: var(--surface2); border-radius: 8px; }
+  .funnel-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px; background: var(--accent); transition: width 0.6s cubic-bezier(.34,1.56,.64,1); min-width: 2px; }
+  .funnel-bar-text { position: relative; z-index: 1; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; width: 100%; }
+  .funnel-step-name { font-size: 12px; font-weight: 600; color: var(--black); text-shadow: none; white-space: nowrap; }
+  .funnel-step-val { font-family: 'Libre Baskerville', serif; font-weight: 700; font-size: 20px; color: var(--black); text-shadow: none; }
+  .funnel-pct { width: 54px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+  .funnel-connector { width: 2px; height: 8px; background: linear-gradient(to bottom, var(--accent), transparent); margin-left: calc(50% - 1px); }
+
+  /* ── VENDAS PAGE ── */
+  #vendasPage { display: none; }
+  #vendasPage.visible { display: flex; flex-direction: column; gap: 26px; }
+  .vendas-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .vendas-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+  .seg-badge { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; font-family: 'JetBrains Mono', monospace; }
+  .seg-badge.mkt        { background: rgba(196,169,106,0.15); color: var(--accent); }
+  .seg-badge.webhook    { background: rgba(96,165,250,0.15); color: #60a5fa; }
+  .seg-badge.assinatura { background: rgba(167,139,250,0.15); color: #a78bfa; }
+
+  /* ── PRODUTO FILTER (multi-select dropdown) ── */
+  .produto-filter-wrap { position: relative; }
+
+  .produto-filter-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text-dim); font-family: 'Outfit', sans-serif;
+    font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.18s;
+    white-space: nowrap; user-select: none;
+  }
+  .produto-filter-btn:hover,
+  .produto-filter-btn.open { border-color: var(--border-accent); color: var(--text); background: rgba(196,169,106,0.06); }
+  .produto-filter-btn .pf-count {
+    background: var(--accent); color: var(--black); border-radius: 10px;
+    font-size: 10px; font-weight: 700; padding: 1px 6px; line-height: 1.4;
+  }
+  .produto-filter-btn .pf-arrow {
+    margin-left: auto; transition: transform 0.18s;
+  }
+  .produto-filter-btn.open .pf-arrow { transform: rotate(180deg); }
+
+  .produto-dropdown {
+    display: none; position: absolute; top: calc(100% + 6px); left: 0;
+    background: var(--surface2); border: 1px solid var(--border-accent);
+    border-radius: 10px; padding: 8px; min-width: 200px; max-width: 280px;
+    z-index: 100; box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  }
+  .produto-dropdown.open { display: block; }
+
+  .pf-search {
+    width: 100%; background: var(--surface3); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; padding: 6px 10px; outline: none; margin-bottom: 6px;
+    transition: border-color 0.18s;
+  }
+  .pf-search:focus { border-color: var(--accent); }
+  .pf-search::placeholder { color: var(--text-muted); }
+
+  .pf-actions {
+    display: flex; gap: 6px; margin-bottom: 6px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pf-action-btn {
+    font-size: 10px; font-family: 'Outfit', sans-serif; font-weight: 600;
+    color: var(--text-dim); background: none; border: none; cursor: pointer;
+    padding: 2px 0; transition: color 0.15s; letter-spacing: 0.5px;
+  }
+  .pf-action-btn:hover { color: var(--text); }
+
+  .pf-list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .pf-list::-webkit-scrollbar { width: 4px; }
+  .pf-list::-webkit-scrollbar-track { background: transparent; }
+  .pf-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .pf-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 10px; border-radius: 6px; cursor: pointer;
+    transition: background 0.15s; user-select: none;
+  }
+  .pf-item:hover { background: var(--surface3); }
+  .pf-item input[type="checkbox"] { display: none; }
+  .pf-check {
+    width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0;
+    border: 1px solid var(--border); background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .pf-item.checked .pf-check { background: var(--accent); border-color: var(--accent); }
+  .pf-item.checked .pf-check::after { content: '✓'; font-size: 9px; color: var(--black); font-weight: 700; }
+  .pf-item-label { font-size: 12px; color: var(--text-dim); font-family: 'Outfit', sans-serif; }
+  .pf-item.checked .pf-item-label { color: var(--text); }
+
+  /* ── FUNIL VIEW ── */
+  #funilView { display: none; }
+  #funilView.visible { display: flex; flex-direction: column; gap: 26px; }
+  .funil-header-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(196,169,106,0.1); border: 1px solid var(--border-accent);
+    border-radius: 8px; padding: 6px 14px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent);
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* ── FUNIL TABLE VIEW ── */
+  #funilTableView { display: none; }
+  #funilTableView.visible { display: block; }
+
+  /* ── TRANSFERÊNCIAS PAGE ── */
+  #transferenciasPage { display: none; }
+  #transferenciasPage.visible { display: flex; flex-direction: column; gap: 26px; }
+
+  .transf-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+
+  .transf-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+
+  /* badges sim/não */
+  .bool-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 9px; border-radius: 5px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .bool-badge.sim  { background: rgba(34,197,94,0.15); color: var(--green); }
+  .bool-badge.nao  { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+
+  /* linha de motivo expandível */
+  .motivo-cell { max-width: 340px; white-space: normal; line-height: 1.45; color: var(--text-dim) !important; font-size: 11px !important; }
+  .motivo-none { color: var(--text-muted) !important; font-style: italic; }
+
+  /* busca */
+  .search-wrap { display: flex; align-items: center; gap: 10px; }
+  .search-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    padding: 8px 14px; outline: none; transition: border-color 0.2s;
+    width: 260px;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--text-muted); }
+
+  /* ── CUSTOS PAGE ── */
+  #custosPage { display: none; }
+  #custosPage.visible { display: flex; flex-direction: column; gap: 26px; }
+
+  .custos-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .custos-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+
+  .cat-badge {
+    display: inline-block; padding: 2px 9px; border-radius: 5px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+    font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 28px; right: 28px; z-index: 2000;
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 20px; border-radius: 12px;
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    transform: translateY(20px); opacity: 0;
+    transition: all 0.3s cubic-bezier(.34,1.56,.64,1);
+    pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.4); color: var(--green); }
+  .toast.error   { background: rgba(192,57,43,0.12);  border: 1px solid rgba(192,57,43,0.4);  color: #ff8a7a; }
+
+  /* ── LOADING ── */
+  .overlay { position: fixed; inset: 0; background: rgba(11,24,18,0.93); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; gap: 14px; }
+  .spinner { width: 42px; height: 42px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .overlay-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); letter-spacing: 2px; }
+  .error-box { background: rgba(192,57,43,0.1); border: 1px solid var(--danger); border-radius: 12px; padding: 24px 32px; text-align: center; max-width: 460px; }
+  .error-box h3 { font-family: 'Libre Baskerville', serif; font-weight: 700; font-size: 20px; color: var(--danger); margin-bottom: 8px; }
+  .error-box p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+  .empty-state { padding: 40px; text-align: center; color: var(--text-muted); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+
+  @media (max-width: 768px) {
+    header, .global-date-bar, .controls, main { padding-left: 16px; padding-right: 16px; }
+    .main-tabs, .funil-bar { padding-left: 16px; }
+    .cards-grid, .transf-cards-grid, .custos-cards-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .vendas-cards-grid { grid-template-columns: 1fr 1fr; }
+    .btn-sync span { display: none; }
+    .search-input { width: 180px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="overlay-text">CARREGANDO DADOS...</div>
+</div>
+
+<header>
+  <div class="logo-area">
+    <div class="logo-icon">TS</div>
+    <h1>THIAGO SAMPAIO <span>Nutrição</span></h1>
+  </div>
+  <div class="header-right">
+    <button class="btn-sync" id="btnSync" title="Reclassificar vendas na planilha">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+      <span>ATUALIZAR VENDAS</span>
+    </button>
+    <div class="status-dot" id="statusDot"></div>
+    <div class="status-label" id="statusLabel">AGUARDANDO</div>
+  </div>
+</header>
+
+<div class="global-date-bar">
+  <span class="date-label">PERÍODO</span>
+  <div class="date-group">
+    <span class="date-label">DE</span>
+    <input type="date" id="dateFrom"/>
+    <span class="date-label">ATÉ</span>
+    <input type="date" id="dateTo"/>
+    <button class="btn-apply" id="btnApply">APLICAR</button>
+  </div>
+</div>
+
+<div class="main-tabs">
+  <button class="main-tab active" data-page="metricas">📊 MÉTRICAS</button>
+  <button class="main-tab" data-page="vendas">💰 VENDAS</button>
+  <button class="main-tab" data-page="transferencias">🔄 TRANSFERÊNCIAS</button>
+  <button class="main-tab" data-page="custos">💸 CUSTOS</button>
+</div>
+
+<!-- ── MÉTRICAS CONTROLS ── -->
+<div id="metricasControls">
+  <div class="controls">
+    <div class="seg-tabs">
+      <button class="seg-tab active" data-seg="mkt">AUTOMAÇÃO</button>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" id="btnViewCards">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="0" y="0" width="7" height="7" rx="1.5"/><rect x="9" y="0" width="7" height="7" rx="1.5"/><rect x="0" y="9" width="7" height="7" rx="1.5"/><rect x="9" y="9" width="7" height="7" rx="1.5"/></svg>
+        Cards
+      </button>
+      <button class="view-btn" id="btnViewTable">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="0" y="0" width="16" height="3" rx="1"/><rect x="0" y="6" width="16" height="3" rx="1"/><rect x="0" y="12" width="16" height="3" rx="1"/></svg>
+        Tabela
+      </button>
+    </div>
+  </div>
+  <div class="funil-bar" id="funilBar" style="display:none;">
+    <span class="funil-bar-label">FUNIS</span>
+    <button class="funil-tab funil-todos active" data-funil="todos">GERAL</button>
+    <span id="funilTabsContainer" style="display:contents;"></span>
+  </div>
+</div>
+
+<!-- ── VENDAS CONTROLS ── -->
+<div id="vendasControls" style="display:none;">
+  <div class="controls">
+    <div class="seg-tabs" id="vSegTabsContainer">
+      <button class="seg-tab active" data-vseg="todos">TODOS</button>
+    </div>
+    <!-- Filtro de produto -->
+    <div class="produto-filter-wrap" id="produtoFilterWrap">
+      <button class="produto-filter-btn" id="produtoFilterBtn">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/></svg>
+        PRODUTO
+        <span class="pf-count" id="pfCount" style="display:none;"></span>
+        <svg class="pf-arrow" width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+      </button>
+      <div class="produto-dropdown" id="produtoDropdown">
+        <input class="pf-search" id="pfSearch" type="text" placeholder="Buscar produto..."/>
+        <div class="pf-actions">
+          <button class="pf-action-btn" id="pfSelAll">Marcar todos</button>
+          <span style="color:var(--border);font-size:10px;">|</span>
+          <button class="pf-action-btn" id="pfClearAll">Desmarcar todos</button>
+        </div>
+        <div class="pf-list" id="pfList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ══ MÉTRICAS PAGE ══ -->
+  <div id="metricasPage">
+    <div id="cardsView">
+      <div class="cards-section">
+        <div class="cards-section-header">
+          <div class="cards-section-label">MÉTRICAS PRINCIPAIS</div>
+          <button class="btn-toggle-secondary" id="btnToggleSecondary">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5"/></svg>
+            <span id="lblSecondary">Ver dados secundários</span>
+          </button>
+        </div>
+        <div class="cards-grid" id="gridPrimary"></div>
+        <div class="secondary-block" id="secondaryBlock">
+          <div class="cards-section-label" style="margin-top:4px;">DADOS SECUNDÁRIOS</div>
+          <div class="cards-grid" id="gridSecondary"></div>
+        </div>
+        <div class="cards-section-label" style="margin-top:6px;">DADOS EXTRAS</div>
+        <div class="extras-row" id="extrasRow"></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div class="chart-title">EVOLUÇÃO DIÁRIA</div>
+          <div class="toggles" id="chartToggles"></div>
+        </div>
+        <div class="chart-body"><canvas id="lineChart"></canvas></div>
+      </div>
+      <div class="funnel-panel">
+        <div class="funnel-title">FUNIL DO PERÍODO</div>
+        <div id="funnelContainer"></div>
+      </div>
+    </div>
+    <div id="tableView">
+      <div class="table-wrap">
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+          <tfoot id="tableFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+    <div id="funilView">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="cards-section-label">FUNIL</div>
+        <div class="funil-header-badge" id="funilBadge">—</div>
+      </div>
+      <div class="cards-grid" id="funilCardsGrid"></div>
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div class="chart-title" id="funilChartTitle">EVOLUÇÃO DIÁRIA</div>
+          <div class="toggles" id="funilChartToggles"></div>
+        </div>
+        <div class="chart-body"><canvas id="funilLineChart"></canvas></div>
+      </div>
+      <div class="funnel-panel">
+        <div class="funnel-title">FUNIL DO PERÍODO</div>
+        <div id="funilFunnelContainer"></div>
+      </div>
+    </div>
+    <div id="funilTableView">
+      <div class="table-wrap">
+        <table>
+          <thead id="funilTableHead"></thead>
+          <tbody id="funilTableBody"></tbody>
+          <tfoot id="funilTableFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ VENDAS PAGE ══ -->
+  <div id="vendasPage">
+    <div class="cards-section-label">FATURAMENTO DO PERÍODO</div>
+    <div class="vendas-cards-grid" id="vendasCardsGrid"></div>
+    <div class="chart-panel">
+      <div class="chart-header"><div class="chart-title">EVOLUÇÃO DE VENDAS</div></div>
+      <div class="chart-body"><canvas id="vendasChart"></canvas></div>
+    </div>
+    <div class="cards-section-label">DETALHAMENTO DE VENDAS</div>
+    <div class="vendas-table-wrap">
+      <table>
+        <thead id="vendasTableHead"></thead>
+        <tbody id="vendasTableBody"></tbody>
+        <tfoot id="vendasTableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ TRANSFERÊNCIAS PAGE ══ -->
+  <div id="transferenciasPage">
+    <div class="cards-section-label">RESUMO DO PERÍODO</div>
+    <div class="transf-cards-grid" id="transfCardsGrid"></div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+      <div class="cards-section-label">TRANSFERÊNCIAS DETALHADAS</div>
+      <div class="search-wrap">
+        <input class="search-input" id="transfSearch" type="text" placeholder="Buscar por nome ou número..."/>
+      </div>
+    </div>
+
+    <div class="transf-table-wrap">
+      <table>
+        <thead id="transfTableHead"></thead>
+        <tbody id="transfTableBody"></tbody>
+        <tfoot id="transfTableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ CUSTOS PAGE ══ -->
+  <div id="custosPage">
+    <div class="cards-section-label">RESUMO DE CUSTOS</div>
+    <div class="custos-cards-grid" id="custosCardsGrid"></div>
+
+    <div class="chart-panel">
+      <div class="chart-header"><div class="chart-title">EVOLUÇÃO DE CUSTOS</div></div>
+      <div class="chart-body"><canvas id="custosChart"></canvas></div>
+    </div>
+
+    <div class="cards-section-label">DETALHAMENTO DE CUSTOS</div>
+    <div class="custos-table-wrap">
+      <table>
+        <thead id="custosTableHead"></thead>
+        <tbody id="custosTableBody"></tbody>
+        <tfoot id="custosTableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════
+// ⚠️ Substitua pela URL do seu novo Apps Script (Implantar > Nova implantação > App da Web)
+// gerado a partir do arquivo Code.gs fornecido junto com este dashboard,
+// vinculado à planilha "dados_performance_automacao_tsnutri".
+const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuSEZtLu3vP3nhOfu7Xx8ZgSuh0Ty-gvbOD1fwsskDVuZ0xbyIaQ_1diBU7n5NSwb0/exec';
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let allData            = [];
+let vendasData         = [];
+let funilData          = {};
+let transferenciasData = [];
+let custosData         = [];
+
+let seg          = 'mkt';
+let activeFunil  = 'todos';
+let vSeg         = 'todos';
+let viewMode     = 'cards';
+let showSecondary= false;
+let activePage   = 'metricas';
+
+// Produto filter state
+let produtoFilterOpen      = false;
+let produtoFilterSelected  = new Set(); // Set vazio = todos selecionados
+let produtoFilterAll       = [];        // lista de todos os produtos disponíveis
+
+let lineChart    = null;
+let vendasChart  = null;
+let funilChart   = null;
+let custosChart  = null;
+
+// Paleta de cores para categorias de custo
+const CAT_COLORS = ['#C4A96A','#60a5fa','#f59e0b','#a78bfa','#34d399','#fb923c','#f472b6'];
+const catColorMap = {};
+function getCatColor(cat) {
+  if (!catColorMap[cat]) {
+    const idx = Object.keys(catColorMap).length % CAT_COLORS.length;
+    catColorMap[cat] = CAT_COLORS[idx];
+  }
+  return catColorMap[cat];
+}
+
+const METRIC_COLORS = {
+  chamados:'#C4A96A', conectados:'#ff6b6b', vendas:'#22c55e',
+  links:'#60a5fa', taxaConexao:'#f59e0b', convTotal:'#a78bfa',
+  convConexao:'#34d399', total:'#5C6B61', naoChamados:'#2A3A31',
+};
+
+const PRIMARY_CARDS = [
+  { key:'chamados',    label:'Chamados',          icon:'📤', format:'num' },
+  { key:'conectados',  label:'Conectados',         icon:'💬', format:'num' },
+  { key:'vendas',      label:'Vendas',             icon:'💰', format:'num' },
+  { key:'taxaConexao', label:'Taxa de Conexão',    icon:'📡', format:'pct' },
+  { key:'convTotal',   label:'Conv. / Chamados',   icon:'📈', format:'pct' },
+  { key:'convConexao', label:'Conv. / Conectados', icon:'🎯', format:'pct' },
+];
+
+const SECONDARY_CARDS = [
+  { key:'total',       label:'Todos',         icon:'👥', format:'num' },
+  { key:'naoChamados', label:'Não Chamados',  icon:'⛔', format:'num' },
+  { key:'links',       label:'Links Enviados',icon:'🔗', format:'num' },
+];
+
+const EXTRAS = [
+  { key:'semInteresse',   label:'Sem Interesse', icon:'🚫' },
+  { key:'transferencias', label:'Transferências', icon:'🔄' },
+];
+
+const METRICS_CONFIG = [
+  { key:'chamados',    label:'Chamados',      format:'num', on:true  },
+  { key:'conectados',  label:'Conectados',    format:'num', on:true  },
+  { key:'vendas',      label:'Vendas',        format:'num', on:true  },
+  { key:'taxaConexao', label:'Taxa Conexão',  format:'pct', on:true  },
+  { key:'convTotal',   label:'Conv. Total',   format:'pct', on:true  },
+  { key:'convConexao', label:'Conv. Conexão', format:'pct', on:true  },
+  { key:'total',       label:'Todos',         format:'num', on:false },
+  { key:'naoChamados', label:'Não Chamados',  format:'num', on:false },
+  { key:'links',       label:'Links',         format:'num', on:false },
+];
+const metricVis = {};
+METRICS_CONFIG.forEach(m => metricVis[m.key] = m.on);
+
+const FUNIL_METRICS_CONFIG = [
+  { key:'chamados',    label:'Prospecções', format:'num', on:true  },
+  { key:'conectados',  label:'Conexões',    format:'num', on:true  },
+  { key:'vendas',      label:'Vendas',      format:'num', on:true  },
+  { key:'taxaConexao', label:'Taxa Conexão',format:'pct', on:true  },
+  { key:'convTotal',   label:'Conv. Total', format:'pct', on:true  },
+  { key:'convConexao', label:'Conv. Conn.', format:'pct', on:true  },
+];
+const funilMetricVis = {};
+FUNIL_METRICS_CONFIG.forEach(m => funilMetricVis[m.key] = m.on);
+
+const TABLE_COLS = [
+  { key:'date',           label:'Data',          format:'date' },
+  { key:'chamados',       label:'Chamados',       format:'num'  },
+  { key:'conectados',     label:'Conectados',     format:'num'  },
+  { key:'links',          label:'Links',          format:'num'  },
+  { key:'vendas',         label:'Vendas',         format:'num'  },
+  { key:'taxaConexao',    label:'Taxa Conexão',   format:'pct'  },
+  { key:'convTotal',      label:'Conv. Total',    format:'pct'  },
+  { key:'convConexao',    label:'Conv. Conexão',  format:'pct'  },
+  { key:'total',          label:'Todos',          format:'num'  },
+  { key:'naoChamados',    label:'Não Chamados',   format:'num'  },
+  { key:'semInteresse',   label:'Sem Interesse',  format:'num'  },
+  { key:'transferencias', label:'Transferências', format:'num'  },
+];
+
+const FUNIL_TABLE_COLS = [
+  { key:'date',        label:'Data',          format:'date' },
+  { key:'chamados',    label:'Prospecções',   format:'num'  },
+  { key:'conectados',  label:'Conexões',      format:'num'  },
+  { key:'links',       label:'Links',         format:'num'  },
+  { key:'vendas',      label:'Vendas',        format:'num'  },
+  { key:'taxaConexao', label:'Taxa Conexão',  format:'pct'  },
+  { key:'convTotal',   label:'Conv. Total',   format:'pct'  },
+  { key:'convConexao', label:'Conv. Conexão', format:'pct'  },
+];
+
+// ════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════
+function showToast(msg, type = 'success', duration = 3500) {
+  const t = document.getElementById('toast');
+  t.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span> ${msg}`;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ════════════════════════════════════════════
+// PCT COLOR
+// ════════════════════════════════════════════
+function getPctColor(key, value) {
+  const rules = { taxaConexao:{low:20,high:30}, convTotal:{low:3.5,high:6}, convConexao:{low:5,high:10} };
+  const rule = rules[key];
+  if (!rule) return '';
+  if (value < rule.low)  return 'color: var(--accent);';
+  if (value > rule.high) return 'color: var(--green);';
+  return 'color: var(--text);';
+}
+
+// ════════════════════════════════════════════
+// FETCH
+// ════════════════════════════════════════════
+async function fetchData() {
+  try {
+    const r = await fetch(APP_SCRIPT_URL);
+    if (!r.ok) throw new Error();
+    allData = await r.json();
+    setStatus('csv');
+  } catch(e) { setStatus('error'); showError(); }
+}
+
+async function fetchVendas() {
+  try {
+    const r = await fetch(APP_SCRIPT_URL + '?sheet=vendas');
+    if (!r.ok) throw new Error();
+    vendasData = await r.json();
+    // Atualiza a lista de produtos disponíveis
+    const produtos = [...new Set(vendasData.map(v => v.produto).filter(Boolean))].sort();
+    produtoFilterAll = produtos;
+    produtoFilterSelected = new Set(); // vazio = todos
+    buildVSegTabs();
+  } catch(e) { vendasData = []; }
+}
+
+// Constrói as abas de segmento da página de Vendas dinamicamente,
+// a partir dos valores de "segmento"/"pipeline" encontrados na planilha.
+// Assim o dashboard se adapta automaticamente a qualquer pipeline futuro,
+// sem depender de nomes fixos de um negócio específico.
+function buildVSegTabs() {
+  const container = document.getElementById('vSegTabsContainer');
+  const segmentos = [...new Set(vendasData.map(v => v.segmento).filter(Boolean))].sort();
+  container.innerHTML = `<button class="seg-tab${vSeg==='todos'?' active':''}" data-vseg="todos">TODOS</button>`;
+  segmentos.forEach(s => {
+    container.innerHTML += `<button class="seg-tab${vSeg===s?' active':''}" data-vseg="${s}">${s.toUpperCase()}</button>`;
+  });
+  container.querySelectorAll('.seg-tab[data-vseg]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.seg-tab[data-vseg]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active'); vSeg = btn.dataset.vseg; refreshVendas();
+    });
+  });
+}
+
+async function fetchFunils() {
+  try {
+    const r = await fetch(APP_SCRIPT_URL + '?sheet=funils');
+    if (!r.ok) throw new Error();
+    funilData = await r.json();
+    buildFunilTabs();
+  } catch(e) { funilData = {}; }
+}
+
+// Constrói as abas de funil dinamicamente a partir das chaves retornadas
+// pelo backend (agrupadas por "produto/tag" na planilha). Assim, qualquer
+// funil/produto novo cadastrado na planilha aparece automaticamente aqui,
+// sem precisar editar este arquivo.
+function buildFunilTabs() {
+  const container = document.getElementById('funilTabsContainer');
+  const nomes = Object.keys(funilData).sort();
+  container.innerHTML = '';
+  nomes.forEach(nome => {
+    const btn = document.createElement('button');
+    btn.className = 'funil-tab';
+    btn.dataset.funil = nome;
+    btn.textContent = nome.toUpperCase();
+    container.appendChild(btn);
+  });
+  document.querySelectorAll('.funil-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.funil-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active'); activeFunil = btn.dataset.funil; refreshMetricas();
+    });
+  });
+}
+
+async function fetchTransferencias() {
+  try {
+    const r = await fetch(APP_SCRIPT_URL + '?sheet=transferencias');
+    if (!r.ok) throw new Error();
+    transferenciasData = await r.json();
+  } catch(e) { transferenciasData = []; }
+}
+
+async function fetchCustos() {
+  try {
+    const r = await fetch(APP_SCRIPT_URL + '?sheet=custos');
+    if (!r.ok) throw new Error();
+    custosData = await r.json();
+  } catch(e) { custosData = []; }
+}
+
+// ════════════════════════════════════════════
+// SYNC VENDAS
+// ════════════════════════════════════════════
+async function sincronizarVendas() {
+  const btn = document.getElementById('btnSync');
+  btn.classList.add('loading');
+  try {
+    const r = await fetch(APP_SCRIPT_URL, { method:'POST', body:JSON.stringify({ action:'classificarVendas' }) });
+    const data = await r.json();
+    btn.classList.remove('loading');
+    if (data.ok) {
+      btn.classList.add('success');
+      showToast('Vendas reclassificadas com sucesso!', 'success');
+      await fetchVendas();
+      buildProdutoDropdown();
+      if (activePage === 'vendas') refreshVendas();
+      setTimeout(() => btn.classList.remove('success'), 3000);
+    } else {
+      showToast('Erro: ' + (data.msg || 'Resposta inesperada'), 'error');
+    }
+  } catch(err) {
+    btn.classList.remove('loading');
+    showToast('Falha na requisição.', 'error');
+  }
+}
+
+// ════════════════════════════════════════════
+// PRODUTO FILTER — multi-select dropdown
+// ════════════════════════════════════════════
+function buildProdutoDropdown() {
+  const list = document.getElementById('pfList');
+  const searchInput = document.getElementById('pfSearch');
+  const query = searchInput ? searchInput.value.toLowerCase() : '';
+  list.innerHTML = '';
+
+  const filtered = produtoFilterAll.filter(p => p.toLowerCase().includes(query));
+
+  if (!filtered.length) {
+    list.innerHTML = `<div style="padding:10px;text-align:center;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">Nenhum produto encontrado</div>`;
+    return;
+  }
+
+  filtered.forEach(produto => {
+    const isChecked = produtoFilterSelected.size === 0 || produtoFilterSelected.has(produto);
+    const item = document.createElement('div');
+    item.className = 'pf-item' + (isChecked ? ' checked' : '');
+    item.dataset.produto = produto;
+    item.innerHTML = `<div class="pf-check"></div><span class="pf-item-label">${produto}</span>`;
+    item.addEventListener('click', () => toggleProduto(produto));
+    list.appendChild(item);
+  });
+
+  updateProdutoCount();
+}
+
+function toggleProduto(produto) {
+  // Se tudo estava selecionado (set vazio), ao clicar em um item, desmarca todos os outros
+  if (produtoFilterSelected.size === 0) {
+    // Seleciona todos menos o clicado (= "desmarcar" esse)
+    produtoFilterSelected = new Set(produtoFilterAll.filter(p => p !== produto));
+  } else if (produtoFilterSelected.has(produto)) {
+    produtoFilterSelected.delete(produto);
+    // Se ficou com todos selecionados, volta ao estado "tudo"
+    if (produtoFilterSelected.size === produtoFilterAll.length) {
+      produtoFilterSelected = new Set();
+    }
+  } else {
+    produtoFilterSelected.add(produto);
+    // Se agora tem todos, limpa (= todos)
+    if (produtoFilterSelected.size === produtoFilterAll.length) {
+      produtoFilterSelected = new Set();
+    }
+  }
+  buildProdutoDropdown();
+  refreshVendas();
+}
+
+function updateProdutoCount() {
+  const countEl = document.getElementById('pfCount');
+  const n = produtoFilterSelected.size;
+  if (n === 0) {
+    countEl.style.display = 'none';
+  } else {
+    countEl.textContent = n;
+    countEl.style.display = '';
+  }
+}
+
+function initProdutoFilter() {
+  const btn      = document.getElementById('produtoFilterBtn');
+  const dropdown = document.getElementById('produtoDropdown');
+  const search   = document.getElementById('pfSearch');
+  const selAll   = document.getElementById('pfSelAll');
+  const clearAll = document.getElementById('pfClearAll');
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    produtoFilterOpen = !produtoFilterOpen;
+    dropdown.classList.toggle('open', produtoFilterOpen);
+    btn.classList.toggle('open', produtoFilterOpen);
+    if (produtoFilterOpen) { search.value = ''; buildProdutoDropdown(); search.focus(); }
+  });
+
+  search.addEventListener('input', buildProdutoDropdown);
+
+  selAll.addEventListener('click', () => {
+    produtoFilterSelected = new Set(); // vazio = todos
+    buildProdutoDropdown();
+    refreshVendas();
+  });
+
+  clearAll.addEventListener('click', () => {
+    // "Desmarcar todos" = filtra nada = mostra nada
+    // Semanticamente mais útil: seleciona apenas o primeiro
+    // Mas aqui vamos deixar como "todos desmarcados" = sem resultado, ou podemos manter tudo selecionado
+    // Opção mais amigável: desmarcar todos deixa sem filtro (igual a "todos")
+    produtoFilterSelected = new Set();
+    buildProdutoDropdown();
+    refreshVendas();
+  });
+
+  // Fecha ao clicar fora
+  document.addEventListener('click', (e) => {
+    if (produtoFilterOpen && !document.getElementById('produtoFilterWrap').contains(e.target)) {
+      produtoFilterOpen = false;
+      dropdown.classList.remove('open');
+      btn.classList.remove('open');
+    }
+  });
+}
+
+// ════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════
+function setStatus(s) {
+  const dot = document.getElementById('statusDot');
+  const lbl = document.getElementById('statusLabel');
+  const styles = {
+    online:'background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;',
+    csv:   'background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 2s infinite;',
+    error: 'background:var(--danger);box-shadow:0 0 8px rgba(192,57,43,.5);',
+  };
+  dot.style.cssText = 'width:7px;height:7px;border-radius:50%;' + (styles[s] || '');
+  lbl.textContent = {online:'AO VIVO', csv:'CSV PÚBLICO', error:'ERRO'}[s] || '—';
+}
+
+function showError() {
+  document.getElementById('loadingOverlay').innerHTML = `
+    <div class="error-box"><h3>ERRO AO CARREGAR</h3>
+    <p>Não foi possível buscar os dados.<br>Verifique se o App Script está configurado.</p></div>`;
+}
+
+function getFiltered() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  return allData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+}
+
+function getVendasFiltered() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  let rows = vendasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+  if (vSeg !== 'todos') rows = rows.filter(d => d.segmento === vSeg);
+  // Filtro de produto: set vazio = todos; senão filtra pelos selecionados
+  if (produtoFilterSelected.size > 0) {
+    rows = rows.filter(d => produtoFilterSelected.has(d.produto));
+  }
+  return rows;
+}
+
+function getTransfFiltered() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  return transferenciasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+}
+
+function getCustosFiltered() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  return custosData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+}
+
+function getFunilFiltered(nome) {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  return (funilData[nome] || []).filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+}
+
+function segData(row) { return row[seg]; }
+
+function sum(rows, field) {
+  let s = 0, has = false;
+  rows.forEach(r => { const v = segData(r)[field]; if (v !== null) { s += v; has = true; } });
+  return has ? s : null;
+}
+
+function sumF(rows, field) {
+  let s = 0, has = false;
+  rows.forEach(r => { const v = r[field]; if (v !== null && v !== undefined) { s += v; has = true; } });
+  return has ? s : null;
+}
+
+const fN   = v => v === null ? null : Math.round(v).toLocaleString('pt-BR');
+const fBRL = v => v === null ? null : v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const fP   = v => v === null ? null : v.toFixed(1) + '%';
+const fD   = d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
+
+function aggregates(rows) {
+  const total=sum(rows,'total'), naoChamados=sum(rows,'naoChamados'),
+        chamados=sum(rows,'chamados'), conectados=sum(rows,'conectados'),
+        links=sum(rows,'links'), vendas=sum(rows,'vendas'),
+        semInteresse=sum(rows,'semInteresse'), transferencias=sum(rows,'transferencias');
+  return {
+    total, naoChamados, chamados, conectados, links, vendas, semInteresse, transferencias,
+    taxaConexao: chamados && conectados !== null ? conectados/chamados*100 : null,
+    convTotal:   chamados && vendas !== null     ? vendas/chamados*100     : null,
+    convConexao: conectados && vendas !== null   ? vendas/conectados*100   : null,
+  };
+}
+
+function aggregatesFunil(rows) {
+  const chamados=sumF(rows,'chamados'), conectados=sumF(rows,'conectados'),
+        links=sumF(rows,'links'), vendas=sumF(rows,'vendas');
+  return {
+    chamados, conectados, links, vendas,
+    taxaConexao: chamados && conectados !== null ? conectados/chamados*100 : null,
+    convTotal:   chamados && vendas !== null     ? vendas/chamados*100     : null,
+    convConexao: conectados && vendas !== null   ? vendas/conectados*100   : null,
+  };
+}
+
+function setDefaultDates() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm   = String(now.getMonth()+1).padStart(2,'0');
+  const dd   = String(now.getDate()).padStart(2,'0');
+  document.getElementById('dateFrom').value = `${yyyy}-${mm}-01`;
+  document.getElementById('dateTo').value   = `${yyyy}-${mm}-${dd}`;
+}
+
+// ════════════════════════════════════════════
+// CARDS — MÉTRICAS
+// ════════════════════════════════════════════
+function buildCard(cfg, agg) {
+  const v = agg[cfg.key];
+  const isPct = cfg.format === 'pct';
+  const disp  = v === null ? null : isPct ? fP(v) : fN(v);
+  const isHL  = ['chamados','conectados','vendas','taxaConexao','convTotal','convConexao'].includes(cfg.key);
+  let pctStyle = '';
+  if (isPct && v !== null) pctStyle = getPctColor(cfg.key, v);
+  const el = document.createElement('div');
+  el.className = 'card' + (isHL ? ' highlight' : '');
+  el.innerHTML = `
+    <span class="card-icon">${cfg.icon}</span>
+    <div class="card-label">${cfg.label}</div>
+    <div class="card-value ${isPct?'is-rate':''} ${disp===null?'na':''}" style="${pctStyle}">${disp !== null ? disp : '—'}</div>
+    ${v !== null && !isPct ? `<div class="card-sub">${Math.round(v).toLocaleString('pt-BR')} leads</div>` : ''}
+  `;
+  return el;
+}
+
+function renderCards(agg) {
+  const gP = document.getElementById('gridPrimary');
+  const gS = document.getElementById('gridSecondary');
+  const ex = document.getElementById('extrasRow');
+  gP.innerHTML = ''; gS.innerHTML = ''; ex.innerHTML = '';
+  PRIMARY_CARDS.forEach(c => gP.appendChild(buildCard(c, agg)));
+  SECONDARY_CARDS.forEach(c => gS.appendChild(buildCard(c, agg)));
+  EXTRAS.forEach(cfg => {
+    const v = agg[cfg.key];
+    let note = '';
+    if (v === null) note = `<div class="card-note">⚠ Coluna ainda não mapeada neste segmento</div>`;
+    const tooltips = {
+      semInteresse:   { title:'Sem Interesse',  text:'Quem recebeu o disparo e clicou no botão de opt-out.' },
+      transferencias: { title:'Transferências', text:'Quem estava em conexão com a IA e foi transferido para o humano.' },
+    };
+    const tip = tooltips[cfg.key];
+    const tipHtml = tip ? `<div class="info-wrap card-info-wrap"><span class="info-btn">?</span><div class="info-tooltip card-tooltip"><strong>${tip.title}</strong>${tip.text}</div></div>` : '';
+    const el = document.createElement('div');
+    el.className = 'card'; el.style.cssText = 'overflow:visible; position:relative;';
+    el.innerHTML = `${tipHtml}<span class="card-icon" style="display:block;">${cfg.icon}</span><div class="card-label">${cfg.label}</div><div class="card-value ${v===null?'na':''}">${v !== null ? fN(v) : '—'}</div>${note}`;
+    ex.appendChild(el);
+  });
+}
+
+// ════════════════════════════════════════════
+// CARDS — FUNIL
+// ════════════════════════════════════════════
+const FUNIL_CARD_CFG = [
+  { key:'chamados',    label:'Prospecções',        icon:'📤', format:'num', hl:true  },
+  { key:'conectados',  label:'Conexões',            icon:'💬', format:'num', hl:true  },
+  { key:'vendas',      label:'Vendas',              icon:'💰', format:'num', hl:true  },
+  { key:'taxaConexao', label:'Taxa de Conexão',     icon:'📡', format:'pct', hl:true  },
+  { key:'convTotal',   label:'Conv. / Prospecções', icon:'📈', format:'pct', hl:true  },
+  { key:'convConexao', label:'Conv. / Conexões',    icon:'🎯', format:'pct', hl:true  },
+  { key:'links',       label:'Links Enviados',      icon:'🔗', format:'num', hl:false },
+];
+
+function renderFunilCards(agg) {
+  const grid = document.getElementById('funilCardsGrid');
+  grid.innerHTML = '';
+  FUNIL_CARD_CFG.forEach(cfg => {
+    const v = agg[cfg.key]; const isPct = cfg.format === 'pct';
+    const disp = v === null ? null : isPct ? fP(v) : fN(v);
+    let pctStyle = ''; if (isPct && v !== null) pctStyle = getPctColor(cfg.key, v);
+    const el = document.createElement('div');
+    el.className = 'card' + (cfg.hl ? ' highlight' : '');
+    el.innerHTML = `<span class="card-icon">${cfg.icon}</span><div class="card-label">${cfg.label}</div><div class="card-value ${isPct?'is-rate':''} ${disp===null?'na':''}" style="${pctStyle}">${disp !== null ? disp : '—'}</div>${v !== null && !isPct ? `<div class="card-sub">${Math.round(v).toLocaleString('pt-BR')}</div>` : ''}`;
+    grid.appendChild(el);
+  });
+}
+
+// ════════════════════════════════════════════
+// FUNIL CHART
+// ════════════════════════════════════════════
+function buildFunilToggles(rows) {
+  const c = document.getElementById('funilChartToggles'); c.innerHTML = '';
+  FUNIL_METRICS_CONFIG.forEach(m => {
+    const col = METRIC_COLORS[m.key], on = funilMetricVis[m.key];
+    const btn = document.createElement('div');
+    btn.className = 'metric-toggle' + (on ? ' active' : '');
+    btn.style.cssText = on ? `background:${col}22;border-color:${col};color:#fff;` : '';
+    btn.innerHTML = `<span class="dot" style="background:${col}"></span>${m.label}`;
+    btn.addEventListener('click', () => { funilMetricVis[m.key] = !funilMetricVis[m.key]; renderFunilChart(rows); });
+    c.appendChild(btn);
+  });
+}
+
+function renderFunilChart(rows) {
+  buildFunilToggles(rows);
+  const labels = rows.map(r => fD(r.date));
+  const sF = key => rows.map(r => {
+    if (key==='taxaConexao') return r.chamados ? (r.conectados||0)/r.chamados*100 : null;
+    if (key==='convTotal')   return r.chamados ? (r.vendas||0)/r.chamados*100 : null;
+    if (key==='convConexao') return r.conectados ? (r.vendas||0)/r.conectados*100 : null;
+    return r[key];
+  });
+  const datasets = FUNIL_METRICS_CONFIG.filter(m => funilMetricVis[m.key]).map(m => ({
+    label:m.label, data:sF(m.key), borderColor:METRIC_COLORS[m.key],
+    backgroundColor:METRIC_COLORS[m.key]+'18', borderWidth:2,
+    pointRadius:rows.length>60?0:3, pointHoverRadius:5,
+    tension:0.35, fill:false, yAxisID:m.format==='pct'?'yPct':'yNum', spanGaps:true,
+  }));
+  if (funilChart) funilChart.destroy();
+  funilChart = new Chart(document.getElementById('funilLineChart').getContext('2d'), {
+    type:'line', data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,
+        callbacks:{label:ctx=>{const m=FUNIL_METRICS_CONFIG.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(1)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},
+      scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},
+        yNum:{type:'linear',position:'left',ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+        yPct:{type:'linear',position:'right',ticks:{color:'#7E8E83',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}}}}
+  });
+}
+
+// ════════════════════════════════════════════
+// FUNNEL VISUAL
+// ════════════════════════════════════════════
+function renderFunnelInto(containerId, agg) {
+  const steps = [
+    { label:'Prospecções', value:agg.chamados  },
+    { label:'Conexões',    value:agg.conectados },
+    { label:'Links',       value:agg.links      },
+    { label:'Vendas',      value:agg.vendas     },
+  ].filter(s => s.value !== null && s.value > 0);
+  const c = document.getElementById(containerId); c.innerHTML = '';
+  if (!steps.length) { c.innerHTML = '<div class="empty-state">Sem dados para o funil no período.</div>'; return; }
+  const mx = steps[0].value || 1;
+  steps.forEach((s, i) => {
+    if (i > 0) { const conn = document.createElement('div'); conn.className = 'funnel-connector'; c.appendChild(conn); }
+    const el = document.createElement('div'); el.className = 'funnel-step';
+    const rel = i===0 ? '100%' : (s.value/mx*100).toFixed(0)+'%';
+    const pct = i===0 ? '100%' : (s.value/steps[0].value*100).toFixed(1)+'%';
+    el.innerHTML = `<div class="funnel-bar-wrap"><div class="funnel-bar-bg"></div><div class="funnel-bar-fill" style="width:0%"></div><div class="funnel-bar-text"><span class="funnel-step-name">${s.label}</span><span class="funnel-step-val">${Math.round(s.value).toLocaleString('pt-BR')}</span></div></div><div class="funnel-pct">${pct}</div>`;
+    c.appendChild(el);
+    setTimeout(() => el.querySelector('.funnel-bar-fill').style.width = rel, 50+i*80);
+  });
+}
+
+// ════════════════════════════════════════════
+// TABLE — MÉTRICAS (segmentos gerais)
+// ════════════════════════════════════════════
+function renderTable(rows) {
+  document.getElementById('tableHead').innerHTML = `<tr>${TABLE_COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
+  const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
+
+  rows.forEach(row => {
+    const d=segData(row);
+    const tx=d.chamados?(d.conectados||0)/d.chamados*100:null;
+    const ct=d.chamados?(d.vendas||0)/d.chamados*100:null;
+    const cc=d.conectados?(d.vendas||0)/d.conectados*100:null;
+    const rd={date:row.date,chamados:d.chamados,conectados:d.conectados,links:d.links,vendas:d.vendas,taxaConexao:tx,convTotal:ct,convConexao:cc,total:d.total,naoChamados:d.naoChamados,semInteresse:d.semInteresse,transferencias:d.transferencias};
+    const tr=document.createElement('tr');
+    tr.innerHTML=TABLE_COLS.map(col=>renderTableCell(col, rd[col.key])).join('');
+    tbody.appendChild(tr);
+  });
+
+  const agg=aggregates(rows);
+  const footData = {
+    date:'TOTAL DO PERÍODO',
+    chamados:agg.chamados, conectados:agg.conectados, links:agg.links, vendas:agg.vendas,
+    taxaConexao:agg.taxaConexao, convTotal:agg.convTotal, convConexao:agg.convConexao,
+    total:agg.total, naoChamados:agg.naoChamados, semInteresse:agg.semInteresse, transferencias:agg.transferencias,
+  };
+  document.getElementById('tableFoot').innerHTML = `<tr>${TABLE_COLS.map(col => renderTableFootCell(col, footData[col.key])).join('')}</tr>`;
+}
+
+// ════════════════════════════════════════════
+// TABLE — FUNIL INDIVIDUAL
+// ════════════════════════════════════════════
+function renderFunilTable(rows) {
+  document.getElementById('funilTableHead').innerHTML = `<tr>${FUNIL_TABLE_COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
+  const tbody = document.getElementById('funilTableBody'); tbody.innerHTML = '';
+
+  rows.forEach(row => {
+    const tx = row.chamados ? (row.conectados||0)/row.chamados*100 : null;
+    const ct = row.chamados ? (row.vendas||0)/row.chamados*100 : null;
+    const cc = row.conectados ? (row.vendas||0)/row.conectados*100 : null;
+    const rd = { date:row.date, chamados:row.chamados, conectados:row.conectados, links:row.links, vendas:row.vendas, taxaConexao:tx, convTotal:ct, convConexao:cc };
+    const tr = document.createElement('tr');
+    tr.innerHTML = FUNIL_TABLE_COLS.map(col => renderTableCell(col, rd[col.key])).join('');
+    tbody.appendChild(tr);
+  });
+
+  const agg = aggregatesFunil(rows);
+  const footData = {
+    date:'TOTAL DO PERÍODO',
+    chamados:agg.chamados, conectados:agg.conectados, links:agg.links, vendas:agg.vendas,
+    taxaConexao:agg.taxaConexao, convTotal:agg.convTotal, convConexao:agg.convConexao,
+  };
+  document.getElementById('funilTableFoot').innerHTML = `<tr>${FUNIL_TABLE_COLS.map(col => renderTableFootCell(col, footData[col.key])).join('')}</tr>`;
+}
+
+function renderTableCell(col, v) {
+  if (col.key === 'date') return `<td>${fD(v)}</td>`;
+  if (v === null || v === undefined) return `<td class="val-na">—</td>`;
+  if (col.format === 'pct') {
+    const s = getPctColor(col.key, v);
+    return `<td style="${s}">${v.toFixed(1)}%</td>`;
+  }
+  const cls = col.key==='vendas' ? 'val-green' : col.key==='chamados' ? 'val-red' : '';
+  return `<td class="${cls}">${Math.round(v).toLocaleString('pt-BR')}</td>`;
+}
+
+function renderTableFootCell(col, v) {
+  if (col.key === 'date') return `<td>TOTAL DO PERÍODO</td>`;
+  if (v === null || v === undefined) return `<td>—</td>`;
+  if (col.format === 'pct') {
+    const s = getPctColor(col.key, v);
+    return `<td style="${s}">${v.toFixed(1)}%</td>`;
+  }
+  const cls = col.key==='vendas' ? 'val-green' : col.key==='chamados' ? 'val-red' : '';
+  return `<td class="${cls}">${Math.round(v).toLocaleString('pt-BR')}</td>`;
+}
+
+// ════════════════════════════════════════════
+// CHART — MÉTRICAS
+// ════════════════════════════════════════════
+function buildToggles() {
+  const c = document.getElementById('chartToggles'); c.innerHTML = '';
+  METRICS_CONFIG.forEach(m => {
+    const col=METRIC_COLORS[m.key], on=metricVis[m.key];
+    const btn=document.createElement('div');
+    btn.className='metric-toggle'+(on?' active':'');
+    btn.style.cssText=on?`background:${col}22;border-color:${col};color:#fff;`:'';
+    btn.innerHTML=`<span class="dot" style="background:${col}"></span>${m.label}`;
+    btn.addEventListener('click',()=>{metricVis[m.key]=!metricVis[m.key];renderChart(getFiltered());});
+    c.appendChild(btn);
+  });
+}
+
+function renderChart(rows) {
+  buildToggles();
+  const labels=rows.map(r=>fD(r.date));
+  const series=key=>rows.map(r=>{const d=segData(r);if(key==='taxaConexao')return d.chamados?(d.conectados||0)/d.chamados*100:null;if(key==='convTotal')return d.chamados?(d.vendas||0)/d.chamados*100:null;if(key==='convConexao')return d.conectados?(d.vendas||0)/d.conectados*100:null;return d[key];});
+  const datasets=METRICS_CONFIG.filter(m=>metricVis[m.key]).map(m=>({label:m.label,data:series(m.key),borderColor:METRIC_COLORS[m.key],backgroundColor:METRIC_COLORS[m.key]+'18',borderWidth:2,pointRadius:rows.length>60?0:3,pointHoverRadius:5,tension:0.35,fill:false,yAxisID:m.format==='pct'?'yPct':'yNum',spanGaps:true}));
+  if (lineChart) lineChart.destroy();
+  lineChart=new Chart(document.getElementById('lineChart').getContext('2d'),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,callbacks:{label:ctx=>{const m=METRICS_CONFIG.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(1)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},yNum:{type:'linear',position:'left',ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},yPct:{type:'linear',position:'right',ticks:{color:'#7E8E83',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}}}}});
+}
+
+// ════════════════════════════════════════════
+// VENDAS
+// ════════════════════════════════════════════
+function renderVendasCards(rows) {
+  const grid=document.getElementById('vendasCardsGrid'); grid.innerHTML='';
+  const fat=rows.reduce((s,r)=>s+r.valor,0);
+  const n=rows.length; const tick=n>0?fat/n:0;
+  [{icon:'💵',label:'Faturamento Total',value:fBRL(fat),cls:'green-highlight',vc:'is-money'},
+   {icon:'🛒',label:'Número de Vendas', value:n.toLocaleString('pt-BR'),cls:'highlight',vc:''},
+   {icon:'🎯',label:'Ticket Médio',     value:fBRL(tick),cls:'',vc:'is-money'}].forEach(c=>{
+    const el=document.createElement('div'); el.className='card '+(c.cls||'');
+    el.innerHTML=`<span class="card-icon">${c.icon}</span><div class="card-label">${c.label}</div><div class="card-value ${c.vc}" style="font-size:24px;">${c.value||'R$ 0,00'}</div>`;
+    grid.appendChild(el);
+  });
+}
+
+function renderVendasChart(rows) {
+  const byDate={};
+  rows.forEach(r=>{if(!byDate[r.date])byDate[r.date]={fat:0,count:0};byDate[r.date].fat+=r.valor;byDate[r.date].count+=1;});
+  const dates=Object.keys(byDate).sort();
+  const labels=dates.map(d=>fD(d));
+  if(vendasChart)vendasChart.destroy();
+  if(!dates.length)return;
+  vendasChart=new Chart(document.getElementById('vendasChart').getContext('2d'),{type:'line',data:{labels,datasets:[{label:'Faturamento (R$)',data:dates.map(d=>byDate[d].fat),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.08)',borderWidth:2,pointRadius:dates.length>60?0:4,pointHoverRadius:6,tension:0.35,fill:true,yAxisID:'yFat',spanGaps:true},{label:'Nº de Vendas',data:dates.map(d=>byDate[d].count),borderColor:'#C4A96A',backgroundColor:'rgba(196,169,106,0.08)',borderWidth:2,pointRadius:dates.length>60?0:4,pointHoverRadius:6,tension:0.35,fill:false,yAxisID:'yCnt',spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,labels:{color:'#9BAA9F',font:{family:'JetBrains Mono',size:11},boxWidth:12,padding:16}},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,callbacks:{label:ctx=>{const v=ctx.parsed.y;if(ctx.dataset.label==='Faturamento (R$)')return'Faturamento: '+v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});return'Vendas: '+Math.round(v);}}}},scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},yFat:{type:'linear',position:'left',ticks:{color:'#22c55e',font:{family:'JetBrains Mono',size:10},callback:v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0})},grid:{color:'rgba(255,255,255,0.04)'}},yCnt:{type:'linear',position:'right',ticks:{color:'#C4A96A',font:{family:'JetBrains Mono',size:10},callback:v=>Math.round(v)},grid:{drawOnChartArea:false}}}}});
+}
+
+function renderVendasTable(rows) {
+  const SL={mkt:'MKT',webhook:'WEBHOOK',assinatura:'ASSINATURA'};
+  const SC={mkt:'mkt',webhook:'webhook',assinatura:'assinatura'};
+  // Cabeçalho com coluna Telefone
+  document.getElementById('vendasTableHead').innerHTML=`<tr><th>Data</th><th>Nome</th><th>Telefone</th><th>Produto</th><th>Segmento</th><th style="text-align:right;">Valor</th></tr>`;
+  const tbody=document.getElementById('vendasTableBody'); tbody.innerHTML='';
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="6" class="empty-state">Nenhuma venda encontrada no período.</td></tr>`;
+    document.getElementById('vendasTableFoot').innerHTML='';
+    return;
+  }
+  [...rows].sort((a,b)=>b.date.localeCompare(a.date)).forEach(r=>{
+    const sc=SC[r.segmento]||'mkt';
+    const sl=SL[r.segmento]||'MKT';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${fD(r.date)}</td><td style="white-space:normal;max-width:160px;">${r.nome||'—'}</td><td class="val-blue">${r.telefone||'—'}</td><td>${r.produto||'—'}</td><td><span class="seg-badge ${sc}">${sl}</span></td><td style="text-align:right;" class="val-green">${fBRL(r.valor)}</td>`;
+    tbody.appendChild(tr);
+  });
+  const totalFat=rows.reduce((s,r)=>s+r.valor,0);
+  document.getElementById('vendasTableFoot').innerHTML=`<tr><td>TOTAL</td><td colspan="4">${rows.length} venda${rows.length!==1?'s':''}</td><td style="text-align:right;color:var(--green);">${fBRL(totalFat)}</td></tr>`;
+}
+
+// ════════════════════════════════════════════
+// TRANSFERÊNCIAS
+// ════════════════════════════════════════════
+function renderTransferencias(rows, search = '') {
+  const grid = document.getElementById('transfCardsGrid'); grid.innerHTML = '';
+  const total = rows.length;
+  const totalSuporte = rows.filter(r => r.mandouSuporte).length;
+
+  const byDay = {};
+  rows.forEach(r => { byDay[r.date] = (byDay[r.date] || 0) + 1; });
+  const diaMax = Object.entries(byDay).sort((a,b) => b[1]-a[1])[0];
+
+  // Cards: Total, Mandou Suporte, Dia com mais
+  [
+    { icon:'🔄', label:'Total de Transferências', value: total.toLocaleString('pt-BR'),                                           cls:'highlight' },
+    { icon:'🎧', label:'Mandou para Suporte',      value: totalSuporte.toLocaleString('pt-BR'), sub: total > 0 ? ((totalSuporte/total*100).toFixed(1)+'% do total') : '', cls:'purple-highlight' },
+    { icon:'📅', label:'Dia com Mais Transf.',     value: diaMax ? fD(diaMax[0]) : '—',        sub: diaMax ? diaMax[1] + ' transferências' : '', cls:'amber-highlight' },
+  ].forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'card ' + (c.cls || '');
+    el.innerHTML = `<span class="card-icon">${c.icon}</span><div class="card-label">${c.label}</div><div class="card-value" style="font-size:${c.value.length > 6 ? '22px':'32px'};">${c.value}</div>${c.sub ? `<div class="card-sub">${c.sub}</div>` : ''}`;
+    grid.appendChild(el);
+  });
+
+  // Tabela com busca
+  const q = search.toLowerCase();
+  const filtered = q ? rows.filter(r => r.nome.toLowerCase().includes(q) || r.telefone.includes(q)) : rows;
+
+  // Cabeçalho com coluna Suporte
+  document.getElementById('transfTableHead').innerHTML = `<tr><th>Data</th><th>Nome</th><th>Número</th><th>Suporte</th><th>Motivo</th></tr>`;
+  const tbody = document.getElementById('transfTableBody'); tbody.innerHTML = '';
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${q ? 'Nenhum resultado para "'+search+'".' : 'Nenhuma transferência no período.'}</td></tr>`;
+    document.getElementById('transfTableFoot').innerHTML = '';
+    return;
+  }
+
+  filtered.forEach(r => {
+    const tr = document.createElement('tr');
+    const motivoHtml = r.motivo
+      ? `<td class="motivo-cell">${r.motivo}</td>`
+      : `<td class="motivo-none">—</td>`;
+    const supBadge = r.mandouSuporte
+      ? `<td><span class="bool-badge sim">✓ Sim</span></td>`
+      : `<td><span class="bool-badge nao">Não</span></td>`;
+    tr.innerHTML = `<td>${fD(r.date)}</td><td style="white-space:normal;max-width:180px;">${r.nome || '—'}</td><td class="val-blue">${r.telefone || '—'}</td>${supBadge}${motivoHtml}`;
+    tbody.appendChild(tr);
+  });
+
+  const totalFiltrado = filtered.filter(r => r.mandouSuporte).length;
+  document.getElementById('transfTableFoot').innerHTML = `<tr><td>TOTAL</td><td colspan="2">${filtered.length} transferência${filtered.length!==1?'s':''}</td><td><span class="bool-badge sim" style="font-size:9px;">✓ ${totalFiltrado}</span></td><td></td></tr>`;
+}
+
+// ════════════════════════════════════════════
+// CUSTOS
+// ════════════════════════════════════════════
+function renderCustos(rows) {
+  const grid = document.getElementById('custosCardsGrid'); grid.innerHTML = '';
+  const totalCusto = rows.reduce((s,r) => s+r.valor, 0);
+
+  const byCat = {};
+  rows.forEach(r => { byCat[r.categoria] = (byCat[r.categoria] || 0) + r.valor; });
+  const cats = Object.entries(byCat).sort((a,b) => b[1]-a[1]);
+
+  const elTotal = document.createElement('div');
+  elTotal.className = 'card highlight';
+  elTotal.innerHTML = `<span class="card-icon">💸</span><div class="card-label">Custo Total</div><div class="card-value is-money-red" style="font-size:24px;">${fBRL(totalCusto)}</div>`;
+  grid.appendChild(elTotal);
+
+  cats.forEach(([cat, val]) => {
+    const color = getCatColor(cat);
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.style.cssText = `border-color:${color}44;`;
+    el.innerHTML = `<div style="position:absolute;top:0;left:0;right:0;height:2px;background:${color};border-radius:14px 14px 0 0;"></div>
+      <span class="card-icon">🏷️</span>
+      <div class="card-label">${cat}</div>
+      <div class="card-value is-money-red" style="font-size:24px;">${fBRL(val)}</div>
+      <div class="card-sub">${((val/totalCusto)*100).toFixed(1)}% do total</div>`;
+    grid.appendChild(el);
+  });
+
+  const byDate = {};
+  rows.forEach(r => { byDate[r.date] = (byDate[r.date] || 0) + r.valor; });
+  const dates = Object.keys(byDate).sort();
+  if (custosChart) custosChart.destroy();
+  if (dates.length) {
+    custosChart = new Chart(document.getElementById('custosChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: dates.map(d => fD(d)),
+        datasets: [{
+          label: 'Custo (R$)',
+          data: dates.map(d => byDate[d]),
+          backgroundColor: 'rgba(196,169,106,0.5)',
+          borderColor: '#C4A96A',
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#17231C', borderColor: '#33453A', borderWidth: 1,
+            titleColor: '#EDE8D8', bodyColor: '#B7C2B9', padding: 12,
+            callbacks: { label: ctx => 'Custo: ' + ctx.parsed.y.toLocaleString('pt-BR', {style:'currency',currency:'BRL'}) }
+          }
+        },
+        scales: {
+          x: { ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
+          y: { ticks:{color:'#C4A96A',font:{family:'JetBrains Mono',size:10},callback:v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0})}, grid:{color:'rgba(255,255,255,0.04)'} }
+        }
+      }
+    });
+  }
+
+  document.getElementById('custosTableHead').innerHTML = `<tr><th>Data</th><th>Categoria</th><th>Descrição</th><th style="text-align:right;">Valor</th></tr>`;
+  const tbody = document.getElementById('custosTableBody'); tbody.innerHTML = '';
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Nenhum custo registrado no período.</td></tr>`;
+    document.getElementById('custosTableFoot').innerHTML = '';
+    return;
+  }
+
+  rows.forEach(r => {
+    const color = getCatColor(r.categoria);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${fD(r.date)}</td>
+      <td><span class="cat-badge" style="background:${color}22;color:${color};">${r.categoria}</span></td>
+      <td style="white-space:normal;max-width:300px;color:var(--text-dim);font-size:11px;">${r.descricao}</td>
+      <td style="text-align:right;" class="val-red">${fBRL(r.valor)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('custosTableFoot').innerHTML = `
+    <tr>
+      <td>TOTAL</td>
+      <td colspan="2">${rows.length} item${rows.length!==1?'s':''}</td>
+      <td style="text-align:right;color:var(--accent);">${fBRL(totalCusto)}</td>
+    </tr>`;
+}
+
+// ════════════════════════════════════════════
+// REFRESH
+// ════════════════════════════════════════════
+function refreshMetricas() {
+  const isMkt   = seg === 'mkt';
+  const isFunil = isMkt && activeFunil !== 'todos';
+  document.getElementById('funilBar').style.display = isMkt ? '' : 'none';
+
+  document.getElementById('cardsView').style.display     = 'none';
+  document.getElementById('tableView').classList.remove('visible');
+  document.getElementById('funilView').classList.remove('visible');
+  document.getElementById('funilTableView').classList.remove('visible');
+
+  if (isFunil) {
+    const rows = getFunilFiltered(activeFunil);
+    const agg  = aggregatesFunil(rows);
+    document.getElementById('funilBadge').textContent     = activeFunil.toUpperCase();
+    document.getElementById('funilChartTitle').textContent = 'EVOLUÇÃO DIÁRIA — ' + activeFunil.toUpperCase();
+
+    if (viewMode === 'table') {
+      document.getElementById('funilTableView').classList.add('visible');
+      renderFunilTable(rows);
+    } else {
+      document.getElementById('funilView').classList.add('visible');
+      renderFunilCards(agg); renderFunilChart(rows); renderFunnelInto('funilFunnelContainer', agg);
+    }
+  } else {
+    const rows = getFiltered(); const agg = aggregates(rows);
+    if (viewMode === 'cards') {
+      document.getElementById('cardsView').style.display = '';
+      renderCards(agg); renderChart(rows); renderFunnelInto('funnelContainer', agg);
+    } else {
+      document.getElementById('tableView').classList.add('visible');
+      renderTable(rows);
+    }
+  }
+}
+
+function refreshVendas() {
+  const rows = getVendasFiltered();
+  renderVendasCards(rows); renderVendasChart(rows); renderVendasTable(rows);
+}
+
+function refreshTransferencias() {
+  const rows = getTransfFiltered();
+  const search = document.getElementById('transfSearch').value;
+  renderTransferencias(rows, search);
+}
+
+function refreshCustos() {
+  renderCustos(getCustosFiltered());
+}
+
+function refreshAll() {
+  if (activePage === 'metricas')            refreshMetricas();
+  else if (activePage === 'vendas')         refreshVendas();
+  else if (activePage === 'transferencias') refreshTransferencias();
+  else if (activePage === 'custos')         refreshCustos();
+}
+
+function switchView(mode) {
+  viewMode = mode;
+  document.getElementById('btnViewCards').classList.toggle('active', mode==='cards');
+  document.getElementById('btnViewTable').classList.toggle('active', mode==='table');
+  refreshMetricas();
+}
+
+function switchPage(page) {
+  activePage = page;
+  const pages = ['metricas','vendas','transferencias','custos'];
+  pages.forEach(p => {
+    const el = document.getElementById(p === 'metricas' ? 'metricasPage' : p+'Page');
+    if (p === 'metricas') el.style.display = page === 'metricas' ? '' : 'none';
+    else el.classList.toggle('visible', page === p);
+  });
+  document.getElementById('metricasControls').style.display  = page==='metricas' ? '' : 'none';
+  document.getElementById('vendasControls').style.display    = page==='vendas'   ? '' : 'none';
+  document.querySelectorAll('.main-tab').forEach(t => t.classList.toggle('active', t.dataset.page===page));
+  refreshAll();
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+async function init() {
+  await Promise.all([fetchData(), fetchVendas(), fetchFunils(), fetchTransferencias(), fetchCustos()]);
+  document.getElementById('loadingOverlay').style.display = 'none';
+  if (!allData.length) { showError(); return; }
+
+  setDefaultDates();
+  buildProdutoDropdown();
+  initProdutoFilter();
+
+  document.querySelectorAll('.main-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchPage(btn.dataset.page));
+  });
+
+  document.querySelectorAll('.seg-tab[data-seg]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.seg-tab[data-seg]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active'); seg = btn.dataset.seg;
+      activeFunil = 'todos';
+      document.querySelectorAll('.funil-tab').forEach(b => b.classList.remove('active'));
+      document.querySelector('.funil-tab[data-funil="todos"]')?.classList.add('active');
+      refreshMetricas();
+    });
+  });
+
+  // Abas de funil ("todos"/GERAL) e de segmento de vendas já têm seus
+  // listeners próprios anexados em buildFunilTabs() e buildVSegTabs(),
+  // chamadas dentro de fetchFunils() e fetchVendas() acima.
+  document.querySelector('.funil-tab[data-funil="todos"]')?.addEventListener('click', () => {
+    document.querySelectorAll('.funil-tab').forEach(b => b.classList.remove('active'));
+    document.querySelector('.funil-tab[data-funil="todos"]').classList.add('active');
+    activeFunil = 'todos'; refreshMetricas();
+  });
+
+  document.getElementById('btnViewCards').addEventListener('click', () => switchView('cards'));
+  document.getElementById('btnViewTable').addEventListener('click', () => switchView('table'));
+
+  document.getElementById('btnToggleSecondary').addEventListener('click', () => {
+    showSecondary = !showSecondary;
+    document.getElementById('secondaryBlock').classList.toggle('visible', showSecondary);
+    document.getElementById('btnToggleSecondary').classList.toggle('active', showSecondary);
+    document.getElementById('lblSecondary').textContent = showSecondary ? 'Ocultar dados secundários' : 'Ver dados secundários';
+  });
+
+  document.getElementById('btnApply').addEventListener('click', refreshAll);
+  document.getElementById('btnSync').addEventListener('click', sincronizarVendas);
+
+  document.getElementById('transfSearch').addEventListener('input', () => {
+    if (activePage === 'transferencias') refreshTransferencias();
+  });
+
+  refreshMetricas();
+}
+
+init();
+</script>
+</body>
+</html>
