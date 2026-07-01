@@ -27,7 +27,7 @@
     --danger:    #C0392B;
     --danger-glow: rgba(192,57,43,0.16);
   }
-  
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
@@ -362,6 +362,7 @@
   .seg-badge.mkt        { background: rgba(196,169,106,0.15); color: var(--accent); }
   .seg-badge.webhook    { background: rgba(96,165,250,0.15); color: #60a5fa; }
   .seg-badge.assinatura { background: rgba(167,139,250,0.15); color: #a78bfa; }
+  .seg-badge.geral      { background: rgba(196,169,106,0.15); color: var(--accent); }
 
   /* ── PRODUTO FILTER (multi-select dropdown) ── */
   .produto-filter-wrap { position: relative; }
@@ -767,7 +768,7 @@
 // ⚠️ Substitua pela URL do seu novo Apps Script (Implantar > Nova implantação > App da Web)
 // gerado a partir do arquivo Code.gs fornecido junto com este dashboard,
 // vinculado à planilha "dados_performance_automacao_tsnutri".
-const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuSEZtLu3vP3nhOfu7Xx8ZgSuh0Ty-gvbOD1fwsskDVuZ0xbyIaQ_1diBU7n5NSwb0/exec';
+const APP_SCRIPT_URL = 'COLE_AQUI_A_URL_DO_SEU_APP_SCRIPT_/exec';
 
 // ════════════════════════════════════════════
 // STATE
@@ -964,7 +965,11 @@ async function fetchFunils() {
 // sem precisar editar este arquivo.
 function buildFunilTabs() {
   const container = document.getElementById('funilTabsContainer');
-  const nomes = Object.keys(funilData).sort();
+  // Ignora qualquer bucket "geral"/"todos" que porventura venha do backend:
+  // essa visão já existe como a aba fixa "GERAL" e não deve se repetir aqui.
+  const nomes = Object.keys(funilData)
+    .filter(n => !['geral', 'todos', ''].includes(String(n).trim().toLowerCase()))
+    .sort();
   container.innerHTML = '';
   nomes.forEach(nome => {
     const btn = document.createElement('button');
@@ -1515,8 +1520,9 @@ function renderVendasTable(rows) {
     return;
   }
   [...rows].sort((a,b)=>b.date.localeCompare(a.date)).forEach(r=>{
-    const sc=SC[r.segmento]||'mkt';
-    const sl=SL[r.segmento]||'MKT';
+    const seg=r.segmento||'';
+    const sc=SC[seg]||'geral';
+    const sl=SL[seg]||(seg?seg.toUpperCase():'GERAL');
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${fD(r.date)}</td><td style="white-space:normal;max-width:160px;">${r.nome||'—'}</td><td class="val-blue">${r.telefone||'—'}</td><td>${r.produto||'—'}</td><td><span class="seg-badge ${sc}">${sl}</span></td><td style="text-align:right;" class="val-green">${fBRL(r.valor)}</td>`;
     tbody.appendChild(tr);
