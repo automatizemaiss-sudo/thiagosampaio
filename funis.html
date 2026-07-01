@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TS Nutrição — Funis de Automação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green-dark:   #1B3C2D;
+  --green-medium: #5E8B6E;
+  --gold:         #C4A96A;
+  --cream:        #EDE8D8;
+  --cream-light:  #F8F5EE;
+
+  --bg:      var(--cream-light);
+  --surface: #FDFCF8;
+  --border:  #DAD4C3;
+  --text:    var(--green-dark);
+  --muted:   rgba(27,60,45,.65);
+  --faint:   rgba(27,60,45,.42);
+
+  --danger:     #E23B2B;
+  --danger-bg:  #FBEAE7;
+  --success:    #3D6E4F;
+  --success-bg: #E8F1EA;
+  --gold-bg:    #F6EFDD;
+  --gold-text:  #8A6F3F;
+
+  --wa-bg: #E9E2D3;
+  --wa-bubble: #fff;
+  --wa-green: #128C7E;
+
+  --font-serif: 'Libre Baskerville', Georgia, serif;
+  --font-sans: 'Outfit', system-ui, sans-serif;
+
+  --r: 10px;
+  --rs: 8px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── HEADER ─────────────────────────────── */
+header {
+  height: 60px;
+  background: var(--green-dark);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 13px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.logo-box {
+  width: 36px; height: 36px;
+  background: var(--cream);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-box .mono {
+  font-family: var(--font-serif); font-style: italic; font-weight: 700;
+  color: var(--green-dark); font-size: 17px; letter-spacing: -1px;
+}
+header h1 {
+  font-family: var(--font-serif); font-weight: 700;
+  color: var(--cream); font-size: 17px;
+}
+.hcount { color: var(--gold); font-size: 12px; margin-left: auto; opacity: .85; }
+
+/* ── LAYOUT ─────────────────────────────── */
+.layout { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ────────────────────────────── */
+aside {
+  width: 272px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden; flex-shrink: 0;
+}
+.sb-top {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sb-top input {
+  width: 100%; padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px; font-size: 13px;
+  background: var(--cream-light); outline: none; color: var(--text);
+  font-family: inherit;
+}
+.sb-top input:focus { border-color: var(--green-medium); }
+.sb-list { overflow-y: auto; flex: 1; padding: 4px 0 12px; }
+.sb-list::-webkit-scrollbar { width: 3px; }
+.sb-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* grupo */
+.g-hdr {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 13px 7px;
+  cursor: pointer; user-select: none;
+  transition: background .12s;
+}
+.g-hdr:hover { background: var(--cream-light); }
+.g-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.g-name {
+  font-size: 11px; font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase; letter-spacing: .6px;
+  flex: 1;
+}
+.g-chev {
+  font-size: 9px; color: var(--faint);
+  transition: transform .18s; display: inline-block;
+}
+.g-chev.open { transform: rotate(90deg); }
+.g-items { display: none; }
+.g-items.open { display: block; }
+
+/* funil item */
+.f-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px 8px 24px;
+  cursor: pointer; transition: background .1s;
+  border-left: 3px solid transparent;
+}
+.f-item:hover { background: var(--cream-light); }
+.f-item.active { background: var(--gold-bg); }
+.f-name { font-size: 13px; color: var(--text); flex: 1; line-height: 1.35; }
+.f-item.active .f-name { font-weight: 600; }
+.f-sit { font-size: 10px; color: var(--gold-text); margin-top: 1px; font-style: italic; }
+.f-badge {
+  font-size: 10px; padding: 2px 7px;
+  border-radius: 10px; white-space: nowrap; flex-shrink: 0;
+}
+.on  { background: var(--success-bg); color: var(--success); }
+.off { background: var(--danger-bg); color: var(--danger); }
+
+/* ── MAIN ───────────────────────────────── */
+main {
+  flex: 1; overflow-y: auto;
+  padding: 20px 26px 32px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+main::-webkit-scrollbar { width: 5px; }
+main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* empty */
+.empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; text-align: center; padding: 60px 20px;
+}
+.empty-ico { font-size: 42px; }
+.empty p { font-size: 15px; color: var(--muted); font-family: var(--font-serif); }
+.empty small { font-size: 13px; color: var(--faint); }
+
+/* funil header */
+.f-header {
+  background: var(--surface); border-radius: var(--r);
+  padding: 20px 24px; border: 1px solid var(--border);
+}
+.f-title { font-family: var(--font-serif); font-size: 21px; font-weight: 700; color: var(--green-dark); }
+.f-title .cat { font-weight: 400; font-style: italic; }
+.f-meta { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+.mpill {
+  font-size: 12px; padding: 3px 11px;
+  border-radius: 20px; font-weight: 500;
+}
+.mpill-green { background: var(--success-bg); color: var(--success); }
+.mpill-red   { background: var(--danger-bg); color: var(--danger); }
+.mpill-gray  { background: var(--cream-light); color: var(--muted); border: 1px solid var(--border); }
+.mpill-gold  { background: var(--gold-bg); color: var(--gold-text); border: 1px solid rgba(196,169,106,.4); }
+.ctag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; background: var(--gold-bg); color: var(--gold-text);
+  border: 1px solid rgba(196,169,106,.4); border-radius: 6px; padding: 3px 9px;
+}
+
+/* seção */
+.s-label {
+  font-size: 10px; font-weight: 700;
+  color: var(--faint); text-transform: uppercase;
+  letter-spacing: .9px; padding: 2px 0;
+}
+
+/* ── MSG CARD ───────────────────────────── */
+.mcard {
+  background: var(--surface);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+}
+
+.mcard-hdr {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer; user-select: none;
+  transition: background .1s;
+  border-radius: var(--r);
+}
+.mcard-hdr.is-open {
+  border-radius: var(--r) var(--r) 0 0;
+  background: var(--cream-light);
+}
+.mcard-hdr:hover { background: var(--cream-light); }
+
+.mstep {
+  width: 30px; height: 30px; border-radius: 50%;
+  color: #fff; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.mstep-d { background: var(--border); color: var(--muted); font-size: 15px; }
+
+.minfo { flex: 1; min-width: 0; }
+.m-title { font-size: 14px; font-weight: 500; color: var(--text); }
+.m-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.m-prev  {
+  font-size: 12px; color: var(--faint); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.mchev {
+  font-size: 14px; color: var(--faint);
+  transition: transform .18s; flex-shrink: 0;
+  margin-top: 6px;
+}
+.mchev.open { transform: rotate(180deg); }
+
+.mcard-body {
+  display: none;
+  border-top: 1px solid var(--border);
+  background: var(--wa-bg);
+  padding: 20px 20px 24px;
+  border-radius: 0 0 var(--r) var(--r);
+}
+.mcard-body.open { display: block; }
+
+/* ── WA BUBBLE ──────────────────────────── */
+.wa-frame {
+  max-width: 480px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.wa-meta-row {
+  display: flex; align-items: center; gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(27,60,45,.1);
+  flex-wrap: wrap;
+}
+.wa-meta-lbl { font-size: 11px; color: var(--muted); }
+.wa-tname {
+  font-size: 11px; font-family: 'Courier New', monospace;
+  background: rgba(27,60,45,.07); padding: 2px 8px;
+  border-radius: 4px; color: var(--green-dark); word-break: break-all;
+}
+.wa-bubble {
+  background: var(--wa-bubble);
+  border-radius: 0 12px 12px 12px;
+  padding: 10px 14px 8px;
+  font-size: 14px; line-height: 1.6; color: #111;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+  white-space: pre-wrap; word-break: break-word;
+}
+.wa-bubble::before {
+  content: '';
+  position: absolute; top: 0; left: -8px;
+  border-top: 9px solid var(--wa-bubble);
+  border-left: 9px solid transparent;
+}
+.wa-time {
+  text-align: right; font-size: 11px; color: #999; margin-top: 6px;
+}
+.wa-btns { display: flex; flex-direction: column; gap: 6px; }
+.wa-btn {
+  background: #fff;
+  border: 1px solid rgba(94,139,110,.45);
+  border-radius: 8px; padding: 9px 14px;
+  text-align: center; font-size: 13px; font-weight: 500;
+  color: var(--green-medium);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.wa-btn::before { content: '↩'; font-size: 12px; }
+
+/* diretriz / características */
+.d-card {
+  background: var(--gold-bg);
+  border: 1px dashed var(--gold);
+  border-radius: var(--rs);
+  padding: 14px 16px;
+  font-size: 13px; color: #5a4a2a;
+  line-height: 1.65; white-space: pre-wrap; word-break: break-word;
+}
+.d-card a { color: var(--green-medium); text-decoration: underline; }
+.d-lbl {
+  font-size: 10px; font-weight: 700; color: var(--gold-text);
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px;
+}
+
+/* loading / error */
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 40px; color: var(--muted); font-size: 14px;
+}
+.spin {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.errmsg {
+  background: var(--danger-bg); border: 1px solid rgba(226,59,43,.3);
+  border-radius: var(--rs); padding: 14px;
+  color: var(--danger); font-size: 13px; text-align: center; margin: 12px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-box"><span class="mono">Ts</span></div>
+  <h1>Funis de Automação</h1>
+  <span class="hcount" id="hcount"></span>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="sb-top">
+      <input type="text" id="search-in" placeholder="Buscar funil..." oninput="onSearch(this.value)">
+    </div>
+    <div class="sb-list" id="sb-list">
+      <div class="loading"><div class="spin"></div> Carregando...</div>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div class="empty">
+      <div class="empty-ico">💬</div>
+      <p>Selecione um funil para visualizar as mensagens</p>
+      <small>Use a barra lateral para navegar</small>
+    </div>
+  </main>
+</div>
+
+<script>
+// ⚠️ Substitua pela URL do seu Apps Script (Implantar > Nova implantação > App da Web)
+// gerado a partir do arquivo Code.gs fornecido junto com este dashboard,
+// vinculado à planilha de funis do Thiago Sampaio Nutrição.
+const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuSEZtLu3vP3nhOfu7Xx8ZgSuh0Ty-gvbOD1fwsskDVuZ0xbyIaQ_1diBU7n5NSwb0/exec';
+
+// ── SEÇÕES (mapeadas para as chaves retornadas pelo Code.gs) ──
+const SECTIONS = [
+  { lbl:'Mensagem inicial', cols:[
+    {k:'template1', name:'Template 1', tim:'Disparo inicial'}
+  ]},
+  { lbl:'Follow-ups dentro da janela de conversão', cols:[
+    {k:'followup1', name:'Follow-up 1 — dentro da janela', tim:'1h30 após a última interação'},
+    {k:'followup2', name:'Follow-up 2 — dentro da janela', tim:'10h após a última interação'},
+    {k:'followup3', name:'Follow-up 3 — dentro da janela', tim:'23h após a última interação'},
+  ]},
+  { lbl:'Retomada — dia marcado', cols:[
+    {k:'diaMarcado1', name:'F-up dia marcado 1', tim:'1ª tentativa'},
+    {k:'diaMarcado2', name:'F-up dia marcado 2', tim:'2ª tentativa'},
+  ]},
+];
+
+// Paleta de cores derivada da identidade visual (verde/dourado) — atribuída
+// dinamicamente a cada funil que aparecer na planilha, sem nomes fixos.
+const PALETTE = ['#1B3C2D','#5E8B6E','#C4A96A','#3F6B52','#8A6F3F','#2F5240','#A68A4A','#6B8F76'];
+
+let ALL = [], CURRENT = null, OPEN_G = {}, GCOLORS = {};
+
+// ── UTIL ─────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function ok(v) { const s = String(v||'').trim(); return s !== '' && s.toLowerCase() !== 'nan'; }
+
+function linkify(escapedText) {
+  return escapedText.replace(/(https?:\/\/[^\s<]+)/g, url => {
+    const clean = url.replace(/[.,;:)]+$/, '');
+    return `<a href="${clean}" target="_blank" rel="noopener">${clean}</a>`;
+  });
+}
+
+function parseMsg(raw) {
+  if (!ok(raw)) return null;
+  const s = String(raw).trim();
+  const nm = s.match(/Nome:\s*([^\n]+)/);
+  const ct = s.match(/Conteúdo:\s*([\s\S]+)/);
+  if (nm && ct) return { type:'tmpl', nome:nm[1].trim(), body:ct[1].trim() };
+  return { type:'desc', body:s };
+}
+
+function prevText(msg) {
+  if (!msg) return '';
+  const t = msg.body.split('\n').find(l=>l.trim())||'';
+  const clean = t.replace(/\*|_/g,'');
+  return clean.length > 70 ? clean.slice(0,70)+'…' : clean;
+}
+
+function waFmt(txt) {
+  return esc(txt)
+    .replace(/\*([^*\n]+)\*/g,'<strong>$1</strong>')
+    .replace(/_([^_\n]+)_/g,'<em>$1</em>');
+}
+
+function splitBtns(body) {
+  const SEP = /^\s*---\s*$/;
+  const lines = body.split('\n');
+  const sepIdx = lines.findIndex(l => SEP.test(l));
+  if (sepIdx !== -1) {
+    const bodyTxt = lines.slice(0, sepIdx).join('\n').trimEnd();
+    const btns    = lines.slice(sepIdx + 1).map(l => l.trim()).filter(l => l);
+    return { bodyTxt, btns };
+  }
+  return { bodyTxt: body, btns: [] };
+}
+
+function renderBubble(msg) {
+  if (!msg) return '<div style="color:var(--faint);font-size:13px">—</div>';
+  if (msg.type === 'desc') {
+    return `<div class="d-card"><div class="d-lbl">📋 Diretriz / Descrição</div>${linkify(esc(msg.body))}</div>`;
+  }
+  const { bodyTxt, btns } = splitBtns(msg.body);
+  const now = new Date();
+  const hm = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  const btnsHtml = btns.length
+    ? `<div class="wa-btns">${btns.map(b=>`<div class="wa-btn">${esc(b)}</div>`).join('')}</div>`
+    : '';
+  return `
+    <div class="wa-meta-row">
+      <span class="wa-meta-lbl">Template:</span>
+      <span class="wa-tname">${esc(msg.nome)}</span>
+    </div>
+    <div class="wa-bubble">${waFmt(bodyTxt)}<div class="wa-time">${hm} ✓✓</div></div>
+    ${btnsHtml}
+  `;
+}
+
+// ── GRUPOS ───────────────────────────────
+function makeGroups(rows) {
+  const g = {};
+  rows.forEach(r => {
+    const f = String(r.funil||'').trim();
+    if (!f) return;
+    if (!g[f]) g[f] = [];
+    g[f].push(r);
+  });
+  return g;
+}
+
+function assignColors(groups) {
+  let i = 0;
+  Object.keys(groups).forEach(g => {
+    if (!GCOLORS[g]) GCOLORS[g] = PALETTE[i++ % PALETTE.length];
+  });
+}
+
+// ── SIDEBAR ──────────────────────────────
+function buildSidebar(groups, filter='') {
+  const list = document.getElementById('sb-list');
+  list.innerHTML = '';
+
+  Object.entries(groups).forEach(([gname, rows]) => {
+    const color = GCOLORS[gname] || PALETTE[0];
+    const filtered = filter
+      ? rows.filter(r=>(r.funil+' '+r.categoria).toLowerCase().includes(filter.toLowerCase()))
+      : rows;
+    if (!filtered.length) return;
+
+    const isOpen = OPEN_G[gname] !== false;
+    OPEN_G[gname] = isOpen;
+
+    const gid = 'g_' + gname.replace(/[^a-z0-9]/gi,'_');
+    const div = document.createElement('div');
+    div.innerHTML = `
+      <div class="g-hdr" onclick="toggleG('${gid}','${gname.replace(/'/g,"\\'")}')">
+        <div class="g-dot" style="background:${color}"></div>
+        <span class="g-name">${esc(gname)}</span>
+        <span class="g-chev ${isOpen?'open':''}" id="chev_${gid}">▶</span>
+      </div>
+      <div class="g-items ${isOpen?'open':''}" id="${gid}">
+        ${filtered.map(row => {
+          const cat  = String(row.categoria||'—').trim();
+          const ativ = String(row.ativo||'').trim();
+          const sit  = String(row.situacao||'').trim();
+          const act  = CURRENT === row;
+          return `<div class="f-item${act?' active':''}"
+            data-f="${esc(String(row.funil).trim())}"
+            data-c="${esc(String(row.categoria).trim())}"
+            onclick="pickFunil(this)">
+            <div style="flex:1;min-width:0;">
+              <div class="f-name">${esc(cat)}</div>
+              ${ok(sit)?`<div class="f-sit">${esc(sit)}</div>`:''}
+            </div>
+            ${ativ==='Sim'?'<span class="f-badge on">Ativo</span>':ativ==='Não'?'<span class="f-badge off">Inativo</span>':''}
+          </div>`;
+        }).join('')}
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function toggleG(gid, gname) {
+  const el = document.getElementById(gid);
+  const ch = document.getElementById('chev_'+gid);
+  const op = el.classList.toggle('open');
+  ch.classList.toggle('open', op);
+  OPEN_G[gname] = op;
+}
+
+// ── SELEÇÃO ──────────────────────────────
+function pickFunil(el) {
+  const fname = el.dataset.f;
+  const cname = el.dataset.c;
+
+  const row = ALL.find(r =>
+    esc(String(r.funil).trim()) === fname &&
+    esc(String(r.categoria).trim()) === cname
+  );
+  if (!row) return;
+  CURRENT = row;
+
+  document.querySelectorAll('.f-item').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  renderMain(row);
+}
+
+// ── MAIN ─────────────────────────────────
+function renderMain(row) {
+  const main = document.getElementById('main');
+  const funil = String(row.funil||'').trim();
+  const cat   = String(row.categoria||'').trim();
+  const ativo = String(row.ativo||'').trim();
+  const sit   = String(row.situacao||'').trim();
+  const tag   = String(row.tagChatwoot||'').trim();
+  const caract= String(row.caracteristicas||'').trim();
+  const hist  = String(row.historico||'').trim();
+  const color = GCOLORS[funil] || PALETTE[0];
+
+  const statusPill = ativo === 'Sim'
+    ? '<span class="mpill mpill-green">● Ativo</span>'
+    : ativo === 'Não'
+      ? '<span class="mpill mpill-red">● Inativo</span>'
+      : '<span class="mpill mpill-gray">Status não definido</span>';
+
+  let html = `
+    <div class="f-header">
+      <div class="f-title">${esc(funil)} <span class="cat" style="color:${color}">· ${esc(cat)}</span></div>
+      <div class="f-meta">
+        ${statusPill}
+        ${ok(sit)?`<span class="mpill mpill-gold">${esc(sit)}</span>`:''}
+        ${ok(tag)?`<span class="ctag">🏷 ${esc(tag)}</span>`:''}
+      </div>
+    </div>
+  `;
+
+  if (ok(caract)) {
+    html += `<div class="d-card"><div class="d-lbl">📌 Características da abordagem</div>${linkify(esc(caract))}</div>`;
+  }
+  if (ok(hist)) {
+    html += `<div class="d-card"><div class="d-lbl">🕘 Histórico da abordagem</div>${linkify(esc(hist))}</div>`;
+  }
+
+  let step = 1;
+  SECTIONS.forEach(sec => {
+    const cols = sec.cols.filter(c => ok(row[c.k]));
+    if (!cols.length) return;
+
+    html += `<div class="s-label">${sec.lbl}</div>`;
+
+    cols.forEach(c => {
+      const raw = row[c.k];
+      const msg = parseMsg(raw);
+      const isD = msg && msg.type === 'desc';
+      const cid = 'card_' + c.k + '_' + (Math.random()*1e7|0);
+      const prev = prevText(msg);
+
+      html += `
+        <div class="mcard" id="wrap_${cid}">
+          <div class="mcard-hdr" id="hdr_${cid}" onclick="toggleCard('${cid}')">
+            <div class="mstep ${isD?'mstep-d':''}" style="${!isD?'background:'+color:''}">${isD?'📋':step}</div>
+            <div class="minfo">
+              <div class="m-title">${c.name}</div>
+              <div class="m-sub">${c.tim}</div>
+              ${prev?`<div class="m-prev">${esc(prev)}</div>`:''}
+            </div>
+            <div class="mchev" id="chev_${cid}">⌄</div>
+          </div>
+          <div class="mcard-body" id="${cid}">
+            <div class="wa-frame">${renderBubble(msg)}</div>
+          </div>
+        </div>
+      `;
+      if (!isD) step++;
+    });
+  });
+
+  main.innerHTML = html;
+}
+
+function toggleCard(cid) {
+  const body = document.getElementById(cid);
+  const chev = document.getElementById('chev_'+cid);
+  const hdr  = document.getElementById('hdr_'+cid);
+  const open = body.classList.toggle('open');
+  chev.classList.toggle('open', open);
+  hdr.classList.toggle('is-open', open);
+}
+
+function onSearch(q) { buildSidebar(makeGroups(ALL), q); }
+
+// ── INIT ─────────────────────────────────
+async function init() {
+  try {
+    const res = await fetch(APP_SCRIPT_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Erro desconhecido no backend');
+
+    ALL = json.data.filter(r => ok(r.funil));
+    const groups = makeGroups(ALL);
+    assignColors(groups);
+    Object.keys(groups).forEach(g => OPEN_G[g] = true);
+    buildSidebar(groups);
+
+    const hcount = document.getElementById('hcount');
+    hcount.textContent = `${ALL.length} variaç${ALL.length===1?'ão':'ões'} de abordagem`;
+  } catch(e) {
+    document.getElementById('sb-list').innerHTML =
+      `<div class="errmsg">Erro ao carregar.<br><small>${esc(e.message)}</small></div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
