@@ -500,6 +500,10 @@
     font-family: 'JetBrains Mono', monospace; white-space: nowrap;
   }
 
+  /* ── FOLLOW-UPS PAGE ── */
+  #followupsPage { display: none; }
+  #followupsPage.visible { display: flex; flex-direction: column; gap: 26px; }
+
   /* ── TOAST ── */
   .toast {
     position: fixed; bottom: 28px; right: 28px; z-index: 2000;
@@ -577,6 +581,7 @@
   <button class="main-tab" data-page="vendas">💰 VENDAS</button>
   <button class="main-tab" data-page="transferencias">🔄 TRANSFERÊNCIAS</button>
   <button class="main-tab" data-page="custos">💸 CUSTOS</button>
+  <button class="main-tab" data-page="followups">🔁 FOLLOW-UPS</button>
 </div>
 
 <!-- ── MÉTRICAS CONTROLS ── -->
@@ -760,6 +765,27 @@
     </div>
   </div>
 
+  <!-- ══ FOLLOW-UPS PAGE ══ -->
+  <div id="followupsPage">
+    <div class="cards-section-label">RESUMO DE FOLLOW-UPS</div>
+    <div class="vendas-cards-grid" id="followupsCardsGrid"></div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+      <div class="cards-section-label">FOLLOW-UPS DETALHADOS</div>
+      <div class="search-wrap">
+        <input class="search-input" id="followupsSearch" type="text" placeholder="Buscar por nome ou número..."/>
+      </div>
+    </div>
+
+    <div class="vendas-table-wrap">
+      <table>
+        <thead id="followupsTableHead"></thead>
+        <tbody id="followupsTableBody"></tbody>
+        <tfoot id="followupsTableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -779,6 +805,7 @@ let vendasData         = [];
 let funilData          = {};
 let transferenciasData = [];
 let custosData         = [];
+let followupsData      = [];
 
 let seg          = 'mkt';
 let activeFunil  = 'todos';
@@ -1003,6 +1030,14 @@ async function fetchCustos() {
   } catch(e) { custosData = []; }
 }
 
+async function fetchFollowups() {
+  try {
+    const r = await fetch(APP_SCRIPT_URL + '?sheet=followups');
+    if (!r.ok) throw new Error();
+    followupsData = await r.json();
+  } catch(e) { followupsData = []; }
+}
+
 // ════════════════════════════════════════════
 // SYNC VENDAS
 // ════════════════════════════════════════════
@@ -1183,6 +1218,12 @@ function getCustosFiltered() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   return custosData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+}
+
+function getFollowupsFiltered() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  return followupsData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
 
 function getFunilFiltered(nome) {
@@ -1680,6 +1721,75 @@ function renderCustos(rows) {
 }
 
 // ════════════════════════════════════════════
+// FOLLOW-UPS
+// ════════════════════════════════════════════
+const FOLLOWUP_TIPOS = [
+  { key:'1H30', label:'1H30' },
+  { key:'10H',  label:'10H'  },
+  { key:'23H',  label:'23H'  },
+];
+
+function renderFollowups(rows, search = '') {
+  const grid = document.getElementById('followupsCardsGrid'); grid.innerHTML = '';
+
+  FOLLOWUP_TIPOS.forEach(t => {
+    const doTipo = rows.filter(r => r.tipo === t.key);
+    const enviados = doTipo.length;
+    const respondidos = doTipo.filter(r => r.respondido).length;
+    const taxa = enviados > 0 ? (respondidos/enviados*100) : null;
+
+    const el = document.createElement('div');
+    el.className = 'card highlight';
+    el.innerHTML = `
+      <span class="card-icon">⏱️</span>
+      <div class="card-label">Follow-up ${t.label}</div>
+      <div class="card-value" style="font-size:26px;">${enviados.toLocaleString('pt-BR')}</div>
+      <div class="card-sub">${respondidos.toLocaleString('pt-BR')} respondidos${taxa!==null?' · '+taxa.toFixed(1)+'%':''}</div>
+    `;
+    grid.appendChild(el);
+  });
+
+  // Card com o total geral (todos os tipos somados)
+  const totalEnv = rows.length;
+  const totalResp = rows.filter(r => r.respondido).length;
+  const elTotal = document.createElement('div');
+  elTotal.className = 'card green-highlight';
+  elTotal.innerHTML = `
+    <span class="card-icon">📊</span>
+    <div class="card-label">Total Geral</div>
+    <div class="card-value" style="font-size:26px;">${totalEnv.toLocaleString('pt-BR')}</div>
+    <div class="card-sub">${totalResp.toLocaleString('pt-BR')} respondidos${totalEnv>0?' · '+(totalResp/totalEnv*100).toFixed(1)+'%':''}</div>
+  `;
+  grid.appendChild(elTotal);
+
+  // Tabela com busca
+  const q = search.toLowerCase();
+  const filtered = q ? rows.filter(r => r.nome.toLowerCase().includes(q) || r.telefone.includes(q)) : rows;
+
+  document.getElementById('followupsTableHead').innerHTML = `<tr><th>Data</th><th>Nome</th><th>Telefone</th><th>Tipo</th><th>Respondido</th><th>Horário Resposta</th></tr>`;
+  const tbody = document.getElementById('followupsTableBody'); tbody.innerHTML = '';
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${q ? 'Nenhum resultado para "'+search+'".' : 'Nenhum follow-up no período.'}</td></tr>`;
+    document.getElementById('followupsTableFoot').innerHTML = '';
+    return;
+  }
+
+  filtered.forEach(r => {
+    const tr = document.createElement('tr');
+    const respBadge = r.respondido
+      ? `<td><span class="bool-badge sim">✓ Sim</span></td>`
+      : `<td><span class="bool-badge nao">Não</span></td>`;
+    const horario = r.horarioResposta ? new Date(r.horarioResposta).toLocaleString('pt-BR') : '—';
+    tr.innerHTML = `<td>${fD(r.date)}</td><td style="white-space:normal;max-width:180px;">${r.nome||'—'}</td><td class="val-blue">${r.telefone||'—'}</td><td>${r.tipo||'—'}</td>${respBadge}<td>${horario}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const totalFiltradoResp = filtered.filter(r => r.respondido).length;
+  document.getElementById('followupsTableFoot').innerHTML = `<tr><td>TOTAL</td><td colspan="3">${filtered.length} follow-up${filtered.length!==1?'s':''}</td><td><span class="bool-badge sim" style="font-size:9px;">✓ ${totalFiltradoResp}</span></td><td></td></tr>`;
+}
+
+// ════════════════════════════════════════════
 // REFRESH
 // ════════════════════════════════════════════
 function refreshMetricas() {
@@ -1732,11 +1842,18 @@ function refreshCustos() {
   renderCustos(getCustosFiltered());
 }
 
+function refreshFollowups() {
+  const rows = getFollowupsFiltered();
+  const search = document.getElementById('followupsSearch').value;
+  renderFollowups(rows, search);
+}
+
 function refreshAll() {
   if (activePage === 'metricas')            refreshMetricas();
   else if (activePage === 'vendas')         refreshVendas();
   else if (activePage === 'transferencias') refreshTransferencias();
   else if (activePage === 'custos')         refreshCustos();
+  else if (activePage === 'followups')      refreshFollowups();
 }
 
 function switchView(mode) {
@@ -1748,7 +1865,7 @@ function switchView(mode) {
 
 function switchPage(page) {
   activePage = page;
-  const pages = ['metricas','vendas','transferencias','custos'];
+  const pages = ['metricas','vendas','transferencias','custos','followups'];
   pages.forEach(p => {
     const el = document.getElementById(p === 'metricas' ? 'metricasPage' : p+'Page');
     if (p === 'metricas') el.style.display = page === 'metricas' ? '' : 'none';
@@ -1764,7 +1881,7 @@ function switchPage(page) {
 // INIT
 // ════════════════════════════════════════════
 async function init() {
-  await Promise.all([fetchData(), fetchVendas(), fetchFunils(), fetchTransferencias(), fetchCustos()]);
+  await Promise.all([fetchData(), fetchVendas(), fetchFunils(), fetchTransferencias(), fetchCustos(), fetchFollowups()]);
   document.getElementById('loadingOverlay').style.display = 'none';
   if (!allData.length) { showError(); return; }
 
@@ -1811,6 +1928,10 @@ async function init() {
 
   document.getElementById('transfSearch').addEventListener('input', () => {
     if (activePage === 'transferencias') refreshTransferencias();
+  });
+
+  document.getElementById('followupsSearch').addEventListener('input', () => {
+    if (activePage === 'followups') refreshFollowups();
   });
 
   refreshMetricas();
