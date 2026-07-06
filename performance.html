@@ -365,79 +365,6 @@
   .seg-badge.assinatura { background: rgba(167,139,250,0.15); color: #a78bfa; }
   .seg-badge.geral      { background: rgba(196,169,106,0.15); color: var(--accent); }
 
-  /* ── PRODUTO FILTER (multi-select dropdown) ── */
-  .produto-filter-wrap { position: relative; }
-
-  .produto-filter-btn {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 14px; border-radius: 8px;
-    border: 1px solid var(--border); background: var(--surface2);
-    color: var(--text-dim); font-family: 'Outfit', sans-serif;
-    font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.18s;
-    white-space: nowrap; user-select: none;
-  }
-  .produto-filter-btn:hover,
-  .produto-filter-btn.open { border-color: var(--border-accent); color: var(--text); background: rgba(196,169,106,0.06); }
-  .produto-filter-btn .pf-count {
-    background: var(--accent); color: var(--black); border-radius: 10px;
-    font-size: 10px; font-weight: 700; padding: 1px 6px; line-height: 1.4;
-  }
-  .produto-filter-btn .pf-arrow {
-    margin-left: auto; transition: transform 0.18s;
-  }
-  .produto-filter-btn.open .pf-arrow { transform: rotate(180deg); }
-
-  .produto-dropdown {
-    display: none; position: absolute; top: calc(100% + 6px); left: 0;
-    background: var(--surface2); border: 1px solid var(--border-accent);
-    border-radius: 10px; padding: 8px; min-width: 200px; max-width: 280px;
-    z-index: 100; box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-  }
-  .produto-dropdown.open { display: block; }
-
-  .pf-search {
-    width: 100%; background: var(--surface3); border: 1px solid var(--border);
-    border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; padding: 6px 10px; outline: none; margin-bottom: 6px;
-    transition: border-color 0.18s;
-  }
-  .pf-search:focus { border-color: var(--accent); }
-  .pf-search::placeholder { color: var(--text-muted); }
-
-  .pf-actions {
-    display: flex; gap: 6px; margin-bottom: 6px; padding-bottom: 6px;
-    border-bottom: 1px solid var(--border);
-  }
-  .pf-action-btn {
-    font-size: 10px; font-family: 'Outfit', sans-serif; font-weight: 600;
-    color: var(--text-dim); background: none; border: none; cursor: pointer;
-    padding: 2px 0; transition: color 0.15s; letter-spacing: 0.5px;
-  }
-  .pf-action-btn:hover { color: var(--text); }
-
-  .pf-list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
-  .pf-list::-webkit-scrollbar { width: 4px; }
-  .pf-list::-webkit-scrollbar-track { background: transparent; }
-  .pf-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  .pf-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 7px 10px; border-radius: 6px; cursor: pointer;
-    transition: background 0.15s; user-select: none;
-  }
-  .pf-item:hover { background: var(--surface3); }
-  .pf-item input[type="checkbox"] { display: none; }
-  .pf-check {
-    width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0;
-    border: 1px solid var(--border); background: transparent;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s;
-  }
-  .pf-item.checked .pf-check { background: var(--accent); border-color: var(--accent); }
-  .pf-item.checked .pf-check::after { content: '✓'; font-size: 9px; color: var(--black); font-weight: 700; }
-  .pf-item-label { font-size: 12px; color: var(--text-dim); font-family: 'Outfit', sans-serif; }
-  .pf-item.checked .pf-item-label { color: var(--text); }
-
   /* ── FUNIL VIEW ── */
   #funilView { display: none; }
   #funilView.visible { display: flex; flex-direction: column; gap: 26px; }
@@ -587,8 +514,10 @@
 <!-- ── MÉTRICAS CONTROLS ── -->
 <div id="metricasControls">
   <div class="controls">
-    <div class="seg-tabs">
-      <button class="seg-tab active" data-seg="mkt">AUTOMAÇÃO</button>
+    <div class="seg-tabs" id="metricGroupTabs">
+      <button class="seg-tab active" data-group="geral">GERAL</button>
+      <button class="seg-tab" data-group="segmentacoes">SEGMENTAÇÕES</button>
+      <button class="seg-tab" data-group="qualwebn">QUAL WEBN</button>
     </div>
     <div class="view-toggle">
       <button class="view-btn active" id="btnViewCards">
@@ -602,8 +531,7 @@
     </div>
   </div>
   <div class="funil-bar" id="funilBar" style="display:none;">
-    <span class="funil-bar-label">FUNIS</span>
-    <button class="funil-tab funil-todos active" data-funil="todos">GERAL</button>
+    <span class="funil-bar-label" id="funilBarLabel">SEGMENTAÇÕES</span>
     <span id="funilTabsContainer" style="display:contents;"></span>
   </div>
 </div>
@@ -613,24 +541,6 @@
   <div class="controls">
     <div class="seg-tabs" id="vSegTabsContainer">
       <button class="seg-tab active" data-vseg="todos">TODOS</button>
-    </div>
-    <!-- Filtro de produto -->
-    <div class="produto-filter-wrap" id="produtoFilterWrap">
-      <button class="produto-filter-btn" id="produtoFilterBtn">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/></svg>
-        PRODUTO
-        <span class="pf-count" id="pfCount" style="display:none;"></span>
-        <svg class="pf-arrow" width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
-      </button>
-      <div class="produto-dropdown" id="produtoDropdown">
-        <input class="pf-search" id="pfSearch" type="text" placeholder="Buscar produto..."/>
-        <div class="pf-actions">
-          <button class="pf-action-btn" id="pfSelAll">Marcar todos</button>
-          <span style="color:var(--border);font-size:10px;">|</span>
-          <button class="pf-action-btn" id="pfClearAll">Desmarcar todos</button>
-        </div>
-        <div class="pf-list" id="pfList"></div>
-      </div>
     </div>
   </div>
 </div>
@@ -802,22 +712,18 @@ const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuSEZtLu3vP3nhO
 // ════════════════════════════════════════════
 let allData            = [];
 let vendasData         = [];
-let funilData          = {};
+let segmentacoesData   = {};
+let qualwebnData       = {};
 let transferenciasData = [];
 let custosData         = [];
 let followupsData      = [];
 
-let seg          = 'mkt';
-let activeFunil  = 'todos';
+let metricGroup  = 'geral'; // 'geral' | 'segmentacoes' | 'qualwebn'
+let activeSubTab = null;    // sub-aba ativa dentro de segmentacoes/qualwebn
 let vSeg         = 'todos';
 let viewMode     = 'cards';
 let showSecondary= false;
 let activePage   = 'metricas';
-
-// Produto filter state
-let produtoFilterOpen      = false;
-let produtoFilterSelected  = new Set(); // Set vazio = todos selecionados
-let produtoFilterAll       = [];        // lista de todos os produtos disponíveis
 
 let lineChart    = null;
 let vendasChart  = null;
@@ -951,10 +857,6 @@ async function fetchVendas() {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=vendas');
     if (!r.ok) throw new Error();
     vendasData = await r.json();
-    // Atualiza a lista de produtos disponíveis
-    const produtos = [...new Set(vendasData.map(v => v.produto).filter(Boolean))].sort();
-    produtoFilterAll = produtos;
-    produtoFilterSelected = new Set(); // vazio = todos
     buildVSegTabs();
   } catch(e) { vendasData = []; }
 }
@@ -978,40 +880,20 @@ function buildVSegTabs() {
   });
 }
 
-async function fetchFunils() {
+async function fetchSegmentacoes() {
   try {
-    const r = await fetch(APP_SCRIPT_URL + '?sheet=funils');
+    const r = await fetch(APP_SCRIPT_URL + '?sheet=segmentacoes');
     if (!r.ok) throw new Error();
-    funilData = await r.json();
-    buildFunilTabs();
-  } catch(e) { funilData = {}; }
+    segmentacoesData = await r.json();
+  } catch(e) { segmentacoesData = {}; }
 }
 
-// Constrói as abas de funil dinamicamente a partir das chaves retornadas
-// pelo backend (agrupadas por "produto/tag" na planilha). Assim, qualquer
-// funil/produto novo cadastrado na planilha aparece automaticamente aqui,
-// sem precisar editar este arquivo.
-function buildFunilTabs() {
-  const container = document.getElementById('funilTabsContainer');
-  // Ignora qualquer bucket "geral"/"todos" que porventura venha do backend:
-  // essa visão já existe como a aba fixa "GERAL" e não deve se repetir aqui.
-  const nomes = Object.keys(funilData)
-    .filter(n => !['geral', 'todos', ''].includes(String(n).trim().toLowerCase()))
-    .sort();
-  container.innerHTML = '';
-  nomes.forEach(nome => {
-    const btn = document.createElement('button');
-    btn.className = 'funil-tab';
-    btn.dataset.funil = nome;
-    btn.textContent = nome.toUpperCase();
-    container.appendChild(btn);
-  });
-  document.querySelectorAll('.funil-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.funil-tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active'); activeFunil = btn.dataset.funil; refreshMetricas();
-    });
-  });
+async function fetchQualWebn() {
+  try {
+    const r = await fetch(APP_SCRIPT_URL + '?sheet=qualwebn');
+    if (!r.ok) throw new Error();
+    qualwebnData = await r.json();
+  } catch(e) { qualwebnData = {}; }
 }
 
 async function fetchTransferencias() {
@@ -1052,7 +934,6 @@ async function sincronizarVendas() {
       btn.classList.add('success');
       showToast('Vendas reclassificadas com sucesso!', 'success');
       await fetchVendas();
-      buildProdutoDropdown();
       if (activePage === 'vendas') refreshVendas();
       setTimeout(() => btn.classList.remove('success'), 3000);
     } else {
@@ -1062,111 +943,6 @@ async function sincronizarVendas() {
     btn.classList.remove('loading');
     showToast('Falha na requisição.', 'error');
   }
-}
-
-// ════════════════════════════════════════════
-// PRODUTO FILTER — multi-select dropdown
-// ════════════════════════════════════════════
-function buildProdutoDropdown() {
-  const list = document.getElementById('pfList');
-  const searchInput = document.getElementById('pfSearch');
-  const query = searchInput ? searchInput.value.toLowerCase() : '';
-  list.innerHTML = '';
-
-  const filtered = produtoFilterAll.filter(p => p.toLowerCase().includes(query));
-
-  if (!filtered.length) {
-    list.innerHTML = `<div style="padding:10px;text-align:center;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">Nenhum produto encontrado</div>`;
-    return;
-  }
-
-  filtered.forEach(produto => {
-    const isChecked = produtoFilterSelected.size === 0 || produtoFilterSelected.has(produto);
-    const item = document.createElement('div');
-    item.className = 'pf-item' + (isChecked ? ' checked' : '');
-    item.dataset.produto = produto;
-    item.innerHTML = `<div class="pf-check"></div><span class="pf-item-label">${produto}</span>`;
-    item.addEventListener('click', () => toggleProduto(produto));
-    list.appendChild(item);
-  });
-
-  updateProdutoCount();
-}
-
-function toggleProduto(produto) {
-  // Se tudo estava selecionado (set vazio), ao clicar em um item, desmarca todos os outros
-  if (produtoFilterSelected.size === 0) {
-    // Seleciona todos menos o clicado (= "desmarcar" esse)
-    produtoFilterSelected = new Set(produtoFilterAll.filter(p => p !== produto));
-  } else if (produtoFilterSelected.has(produto)) {
-    produtoFilterSelected.delete(produto);
-    // Se ficou com todos selecionados, volta ao estado "tudo"
-    if (produtoFilterSelected.size === produtoFilterAll.length) {
-      produtoFilterSelected = new Set();
-    }
-  } else {
-    produtoFilterSelected.add(produto);
-    // Se agora tem todos, limpa (= todos)
-    if (produtoFilterSelected.size === produtoFilterAll.length) {
-      produtoFilterSelected = new Set();
-    }
-  }
-  buildProdutoDropdown();
-  refreshVendas();
-}
-
-function updateProdutoCount() {
-  const countEl = document.getElementById('pfCount');
-  const n = produtoFilterSelected.size;
-  if (n === 0) {
-    countEl.style.display = 'none';
-  } else {
-    countEl.textContent = n;
-    countEl.style.display = '';
-  }
-}
-
-function initProdutoFilter() {
-  const btn      = document.getElementById('produtoFilterBtn');
-  const dropdown = document.getElementById('produtoDropdown');
-  const search   = document.getElementById('pfSearch');
-  const selAll   = document.getElementById('pfSelAll');
-  const clearAll = document.getElementById('pfClearAll');
-
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    produtoFilterOpen = !produtoFilterOpen;
-    dropdown.classList.toggle('open', produtoFilterOpen);
-    btn.classList.toggle('open', produtoFilterOpen);
-    if (produtoFilterOpen) { search.value = ''; buildProdutoDropdown(); search.focus(); }
-  });
-
-  search.addEventListener('input', buildProdutoDropdown);
-
-  selAll.addEventListener('click', () => {
-    produtoFilterSelected = new Set(); // vazio = todos
-    buildProdutoDropdown();
-    refreshVendas();
-  });
-
-  clearAll.addEventListener('click', () => {
-    // "Desmarcar todos" = filtra nada = mostra nada
-    // Semanticamente mais útil: seleciona apenas o primeiro
-    // Mas aqui vamos deixar como "todos desmarcados" = sem resultado, ou podemos manter tudo selecionado
-    // Opção mais amigável: desmarcar todos deixa sem filtro (igual a "todos")
-    produtoFilterSelected = new Set();
-    buildProdutoDropdown();
-    refreshVendas();
-  });
-
-  // Fecha ao clicar fora
-  document.addEventListener('click', (e) => {
-    if (produtoFilterOpen && !document.getElementById('produtoFilterWrap').contains(e.target)) {
-      produtoFilterOpen = false;
-      dropdown.classList.remove('open');
-      btn.classList.remove('open');
-    }
-  });
 }
 
 // ════════════════════════════════════════════
@@ -1201,10 +977,6 @@ function getVendasFiltered() {
   const to   = document.getElementById('dateTo').value;
   let rows = vendasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
   if (vSeg !== 'todos') rows = rows.filter(d => d.segmento === vSeg);
-  // Filtro de produto: set vazio = todos; senão filtra pelos selecionados
-  if (produtoFilterSelected.size > 0) {
-    rows = rows.filter(d => produtoFilterSelected.has(d.produto));
-  }
   return rows;
 }
 
@@ -1226,13 +998,23 @@ function getFollowupsFiltered() {
   return followupsData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
 
-function getFunilFiltered(nome) {
-  const from = document.getElementById('dateFrom').value;
-  const to   = document.getElementById('dateTo').value;
-  return (funilData[nome] || []).filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+// Retorna o objeto { "<valor>": [{date,chamados,conectados,links,vendas}] }
+// referente ao grupo atualmente selecionado (Segmentações ou Qual Webn).
+function currentGroupData() {
+  if (metricGroup === 'segmentacoes') return segmentacoesData;
+  if (metricGroup === 'qualwebn')     return qualwebnData;
+  return {};
 }
 
-function segData(row) { return row[seg]; }
+function getSubTabFiltered(nome) {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const data = currentGroupData();
+  const rows = (nome && data[nome]) ? data[nome] : [];
+  return rows.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+}
+
+function segData(row) { return row.mkt; }
 
 function sum(rows, field) {
   let s = 0, has = false;
@@ -1330,7 +1112,7 @@ function renderCards(agg) {
 }
 
 // ════════════════════════════════════════════
-// CARDS — FUNIL
+// CARDS — FUNIL (Segmentações / Qual Webn)
 // ════════════════════════════════════════════
 const FUNIL_CARD_CFG = [
   { key:'chamados',    label:'Prospecções',        icon:'📤', format:'num', hl:true  },
@@ -1424,7 +1206,7 @@ function renderFunnelInto(containerId, agg) {
 }
 
 // ════════════════════════════════════════════
-// TABLE — MÉTRICAS (segmentos gerais)
+// TABLE — MÉTRICAS (GERAL)
 // ════════════════════════════════════════════
 function renderTable(rows) {
   document.getElementById('tableHead').innerHTML = `<tr>${TABLE_COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
@@ -1452,7 +1234,7 @@ function renderTable(rows) {
 }
 
 // ════════════════════════════════════════════
-// TABLE — FUNIL INDIVIDUAL
+// TABLE — FUNIL (Segmentações / Qual Webn)
 // ════════════════════════════════════════════
 function renderFunilTable(rows) {
   document.getElementById('funilTableHead').innerHTML = `<tr>${FUNIL_TABLE_COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
@@ -1790,23 +1572,62 @@ function renderFollowups(rows, search = '') {
 }
 
 // ════════════════════════════════════════════
+// SUB-ABAS DE SEGMENTAÇÕES / QUAL WEBN
+// ════════════════════════════════════════════
+// Gera as sub-abas dinamicamente a partir das chaves retornadas pelo
+// backend (segmentacoesData ou qualwebnData, dependendo do metricGroup
+// ativo). Some sozinha (bar fica escondida) quando o grupo é "geral".
+function buildSubTabs() {
+  const bar   = document.getElementById('funilBar');
+  const label = document.getElementById('funilBarLabel');
+  const container = document.getElementById('funilTabsContainer');
+
+  if (metricGroup === 'geral') {
+    bar.style.display = 'none';
+    return;
+  }
+
+  bar.style.display = '';
+  label.textContent = metricGroup === 'segmentacoes' ? 'SEGMENTAÇÕES' : 'QUAL WEBN';
+
+  const data   = currentGroupData();
+  const nomes  = Object.keys(data).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+  if (!activeSubTab || !nomes.includes(activeSubTab)) {
+    activeSubTab = nomes.length ? nomes[0] : null;
+  }
+
+  container.innerHTML = '';
+  if (!nomes.length) {
+    container.innerHTML = `<span style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;padding:10px 0;">Nenhum dado encontrado ainda</span>`;
+    return;
+  }
+
+  nomes.forEach(nome => {
+    const btn = document.createElement('button');
+    btn.className = 'funil-tab' + (nome === activeSubTab ? ' active' : '');
+    btn.textContent = nome.toUpperCase();
+    btn.addEventListener('click', () => { activeSubTab = nome; refreshMetricas(); });
+    container.appendChild(btn);
+  });
+}
+
+// ════════════════════════════════════════════
 // REFRESH
 // ════════════════════════════════════════════
 function refreshMetricas() {
-  const isMkt   = seg === 'mkt';
-  const isFunil = isMkt && activeFunil !== 'todos';
-  document.getElementById('funilBar').style.display = isMkt ? '' : 'none';
-
   document.getElementById('cardsView').style.display     = 'none';
   document.getElementById('tableView').classList.remove('visible');
   document.getElementById('funilView').classList.remove('visible');
   document.getElementById('funilTableView').classList.remove('visible');
 
-  if (isFunil) {
-    const rows = getFunilFiltered(activeFunil);
+  buildSubTabs();
+
+  if (metricGroup !== 'geral') {
+    const rows = getSubTabFiltered(activeSubTab);
     const agg  = aggregatesFunil(rows);
-    document.getElementById('funilBadge').textContent     = activeFunil.toUpperCase();
-    document.getElementById('funilChartTitle').textContent = 'EVOLUÇÃO DIÁRIA — ' + activeFunil.toUpperCase();
+    document.getElementById('funilBadge').textContent      = activeSubTab ? activeSubTab.toUpperCase() : '—';
+    document.getElementById('funilChartTitle').textContent = 'EVOLUÇÃO DIÁRIA — ' + (activeSubTab ? activeSubTab.toUpperCase() : '—');
 
     if (viewMode === 'table') {
       document.getElementById('funilTableView').classList.add('visible');
@@ -1881,37 +1702,28 @@ function switchPage(page) {
 // INIT
 // ════════════════════════════════════════════
 async function init() {
-  await Promise.all([fetchData(), fetchVendas(), fetchFunils(), fetchTransferencias(), fetchCustos(), fetchFollowups()]);
+  await Promise.all([fetchData(), fetchVendas(), fetchSegmentacoes(), fetchQualWebn(), fetchTransferencias(), fetchCustos(), fetchFollowups()]);
   document.getElementById('loadingOverlay').style.display = 'none';
   if (!allData.length) { showError(); return; }
 
   setDefaultDates();
-  buildProdutoDropdown();
-  initProdutoFilter();
 
   document.querySelectorAll('.main-tab').forEach(btn => {
     btn.addEventListener('click', () => switchPage(btn.dataset.page));
   });
 
-  document.querySelectorAll('.seg-tab[data-seg]').forEach(btn => {
+  document.querySelectorAll('#metricGroupTabs .seg-tab').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.seg-tab[data-seg]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active'); seg = btn.dataset.seg;
-      activeFunil = 'todos';
-      document.querySelectorAll('.funil-tab').forEach(b => b.classList.remove('active'));
-      document.querySelector('.funil-tab[data-funil="todos"]')?.classList.add('active');
+      document.querySelectorAll('#metricGroupTabs .seg-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      metricGroup = btn.dataset.group;
+      activeSubTab = null;
       refreshMetricas();
     });
   });
 
-  // Abas de funil ("todos"/GERAL) e de segmento de vendas já têm seus
-  // listeners próprios anexados em buildFunilTabs() e buildVSegTabs(),
-  // chamadas dentro de fetchFunils() e fetchVendas() acima.
-  document.querySelector('.funil-tab[data-funil="todos"]')?.addEventListener('click', () => {
-    document.querySelectorAll('.funil-tab').forEach(b => b.classList.remove('active'));
-    document.querySelector('.funil-tab[data-funil="todos"]').classList.add('active');
-    activeFunil = 'todos'; refreshMetricas();
-  });
+  // A aba de segmento de vendas (pipeline) já tem seu listener próprio,
+  // anexado em buildVSegTabs(), chamada dentro de fetchVendas() acima.
 
   document.getElementById('btnViewCards').addEventListener('click', () => switchView('cards'));
   document.getElementById('btnViewTable').addEventListener('click', () => switchView('table'));
