@@ -709,6 +709,18 @@
 const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuSEZtLu3vP3nhOfu7Xx8ZgSuh0Ty-gvbOD1fwsskDVuZ0xbyIaQ_1diBU7n5NSwb0/exec';
 
 // ════════════════════════════════════════════
+// CONFIG DE ABAS — mude para true/false para mostrar/esconder cada aba
+// principal do dashboard, sem precisar mexer em mais nada.
+// ════════════════════════════════════════════
+const TABS_CONFIG = {
+  metricas:        true,
+  vendas:          true,
+  transferencias:  true,
+  custos:          true,
+  followups:       true,
+};
+
+// ════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════
 let allData            = [];
@@ -834,7 +846,7 @@ function showToast(msg, type = 'success', duration = 3500) {
 // PCT COLOR
 // ════════════════════════════════════════════
 function getPctColor(key, value) {
-  const rules = { taxaConexao:{low:20,high:30}, convTotal:{low:3.5,high:6}, convConexao:{low:5,high:10} };
+  const rules = { taxaConexao:{low:20,high:30}, convTotal:{low:2,high:6}, convConexao:{low:6,high:10} };
   const rule = rules[key];
   if (!rule) return '';
   if (value < rule.low)  return 'color: var(--accent);';
@@ -1721,7 +1733,12 @@ async function init() {
   setDefaultDates();
 
   document.querySelectorAll('.main-tab').forEach(btn => {
-    btn.addEventListener('click', () => switchPage(btn.dataset.page));
+    const key = btn.dataset.page;
+    if (TABS_CONFIG[key] === false) {
+      btn.style.display = 'none'; // aba desativada em TABS_CONFIG: fica escondida
+      return;
+    }
+    btn.addEventListener('click', () => switchPage(key));
   });
 
   document.querySelectorAll('#metricGroupTabs .seg-tab').forEach(btn => {
