@@ -849,7 +849,7 @@ function getPctColor(key, value) {
   const rules = { taxaConexao:{low:20,high:30}, convTotal:{low:2,high:6}, convConexao:{low:6,high:10} };
   const rule = rules[key];
   if (!rule) return '';
-  if (value < rule.low)  return 'color: var(--accent);';
+  if (value < rule.low)  return 'color: var(--danger);';
   if (value > rule.high) return 'color: var(--green);';
   return 'color: var(--text);';
 }
