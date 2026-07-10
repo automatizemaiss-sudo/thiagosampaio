@@ -518,6 +518,7 @@
       <button class="seg-tab active" data-group="geral">GERAL</button>
       <button class="seg-tab" data-group="segmentacoes">SEGMENTAÇÕES</button>
       <button class="seg-tab" data-group="qualwebn">QUAL WEBN</button>
+      <button class="seg-tab" data-group="templates">TEMPLATES</button>
     </div>
     <div class="view-toggle">
       <button class="view-btn active" id="btnViewCards">
@@ -714,12 +715,13 @@ let allData            = [];
 let vendasData         = [];
 let segmentacoesData   = {};
 let qualwebnData       = {};
+let templatesData      = {};
 let transferenciasData = [];
 let custosData         = [];
 let followupsData      = [];
 
-let metricGroup  = 'geral'; // 'geral' | 'segmentacoes' | 'qualwebn'
-let activeSubTab = null;    // sub-aba ativa dentro de segmentacoes/qualwebn
+let metricGroup  = 'geral'; // 'geral' | 'segmentacoes' | 'qualwebn' | 'templates'
+let activeSubTab = null;    // sub-aba ativa dentro de segmentacoes/qualwebn/templates
 let vSeg         = 'todos';
 let viewMode     = 'cards';
 let showSecondary= false;
@@ -896,6 +898,14 @@ async function fetchQualWebn() {
   } catch(e) { qualwebnData = {}; }
 }
 
+async function fetchTemplates() {
+  try {
+    const r = await fetch(APP_SCRIPT_URL + '?sheet=templates');
+    if (!r.ok) throw new Error();
+    templatesData = await r.json();
+  } catch(e) { templatesData = {}; }
+}
+
 async function fetchTransferencias() {
   try {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=transferencias');
@@ -999,10 +1009,11 @@ function getFollowupsFiltered() {
 }
 
 // Retorna o objeto { "<valor>": [{date,chamados,conectados,links,vendas}] }
-// referente ao grupo atualmente selecionado (Segmentações ou Qual Webn).
+// referente ao grupo atualmente selecionado (Segmentações, Qual Webn ou Templates).
 function currentGroupData() {
   if (metricGroup === 'segmentacoes') return segmentacoesData;
   if (metricGroup === 'qualwebn')     return qualwebnData;
+  if (metricGroup === 'templates')    return templatesData;
   return {};
 }
 
@@ -1112,7 +1123,7 @@ function renderCards(agg) {
 }
 
 // ════════════════════════════════════════════
-// CARDS — FUNIL (Segmentações / Qual Webn)
+// CARDS — FUNIL (Segmentações / Qual Webn / Templates)
 // ════════════════════════════════════════════
 const FUNIL_CARD_CFG = [
   { key:'chamados',    label:'Prospecções',        icon:'📤', format:'num', hl:true  },
@@ -1234,7 +1245,7 @@ function renderTable(rows) {
 }
 
 // ════════════════════════════════════════════
-// TABLE — FUNIL (Segmentações / Qual Webn)
+// TABLE — FUNIL (Segmentações / Qual Webn / Templates)
 // ════════════════════════════════════════════
 function renderFunilTable(rows) {
   document.getElementById('funilTableHead').innerHTML = `<tr>${FUNIL_TABLE_COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
@@ -1572,11 +1583,12 @@ function renderFollowups(rows, search = '') {
 }
 
 // ════════════════════════════════════════════
-// SUB-ABAS DE SEGMENTAÇÕES / QUAL WEBN
+// SUB-ABAS DE SEGMENTAÇÕES / QUAL WEBN / TEMPLATES
 // ════════════════════════════════════════════
 // Gera as sub-abas dinamicamente a partir das chaves retornadas pelo
-// backend (segmentacoesData ou qualwebnData, dependendo do metricGroup
-// ativo). Some sozinha (bar fica escondida) quando o grupo é "geral".
+// backend (segmentacoesData, qualwebnData ou templatesData, dependendo
+// do metricGroup ativo). Some sozinha (bar fica escondida) quando o
+// grupo é "geral".
 function buildSubTabs() {
   const bar   = document.getElementById('funilBar');
   const label = document.getElementById('funilBarLabel');
@@ -1588,7 +1600,7 @@ function buildSubTabs() {
   }
 
   bar.style.display = '';
-  label.textContent = metricGroup === 'segmentacoes' ? 'SEGMENTAÇÕES' : 'QUAL WEBN';
+  label.textContent = metricGroup === 'segmentacoes' ? 'SEGMENTAÇÕES' : metricGroup === 'qualwebn' ? 'QUAL WEBN' : 'TEMPLATES';
 
   const data   = currentGroupData();
   const nomes  = Object.keys(data).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
@@ -1702,7 +1714,7 @@ function switchPage(page) {
 // INIT
 // ════════════════════════════════════════════
 async function init() {
-  await Promise.all([fetchData(), fetchVendas(), fetchSegmentacoes(), fetchQualWebn(), fetchTransferencias(), fetchCustos(), fetchFollowups()]);
+  await Promise.all([fetchData(), fetchVendas(), fetchSegmentacoes(), fetchQualWebn(), fetchTemplates(), fetchTransferencias(), fetchCustos(), fetchFollowups()]);
   document.getElementById('loadingOverlay').style.display = 'none';
   if (!allData.length) { showError(); return; }
 
