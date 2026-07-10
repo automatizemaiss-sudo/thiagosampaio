@@ -537,15 +537,6 @@
   </div>
 </div>
 
-<!-- ── VENDAS CONTROLS ── -->
-<div id="vendasControls" style="display:none;">
-  <div class="controls">
-    <div class="seg-tabs" id="vSegTabsContainer">
-      <button class="seg-tab active" data-vseg="todos">TODOS</button>
-    </div>
-  </div>
-</div>
-
 <main>
 
   <!-- ══ MÉTRICAS PAGE ══ -->
@@ -716,7 +707,7 @@ const TABS_CONFIG = {
   metricas:        true,
   vendas:          true,
   transferencias:  true,
-  custos:          false,
+  custos:          true,
   followups:       true,
 };
 
@@ -734,7 +725,6 @@ let followupsData      = [];
 
 let metricGroup  = 'geral'; // 'geral' | 'segmentacoes' | 'qualwebn' | 'templates'
 let activeSubTab = null;    // sub-aba ativa dentro de segmentacoes/qualwebn/templates
-let vSeg         = 'todos';
 let viewMode     = 'cards';
 let showSecondary= false;
 let activePage   = 'metricas';
@@ -871,27 +861,7 @@ async function fetchVendas() {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=vendas');
     if (!r.ok) throw new Error();
     vendasData = await r.json();
-    buildVSegTabs();
   } catch(e) { vendasData = []; }
-}
-
-// Constrói as abas de segmento da página de Vendas dinamicamente,
-// a partir dos valores de "segmento"/"pipeline" encontrados na planilha.
-// Assim o dashboard se adapta automaticamente a qualquer pipeline futuro,
-// sem depender de nomes fixos de um negócio específico.
-function buildVSegTabs() {
-  const container = document.getElementById('vSegTabsContainer');
-  const segmentos = [...new Set(vendasData.map(v => v.segmento).filter(Boolean))].sort();
-  container.innerHTML = `<button class="seg-tab${vSeg==='todos'?' active':''}" data-vseg="todos">TODOS</button>`;
-  segmentos.forEach(s => {
-    container.innerHTML += `<button class="seg-tab${vSeg===s?' active':''}" data-vseg="${s}">${s.toUpperCase()}</button>`;
-  });
-  container.querySelectorAll('.seg-tab[data-vseg]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      container.querySelectorAll('.seg-tab[data-vseg]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active'); vSeg = btn.dataset.vseg; refreshVendas();
-    });
-  });
 }
 
 async function fetchSegmentacoes() {
@@ -997,9 +967,7 @@ function getFiltered() {
 function getVendasFiltered() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
-  let rows = vendasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
-  if (vSeg !== 'todos') rows = rows.filter(d => d.segmento === vSeg);
-  return rows;
+  return vendasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
 
 function getTransfFiltered() {
@@ -1461,37 +1429,51 @@ function renderCustos(rows) {
     grid.appendChild(el);
   });
 
-  const byDate = {};
-  rows.forEach(r => { byDate[r.date] = (byDate[r.date] || 0) + r.valor; });
-  const dates = Object.keys(byDate).sort();
+  const byDateCat = {}; // date -> { categoria: valor }
+  rows.forEach(r => {
+    if (!byDateCat[r.date]) byDateCat[r.date] = {};
+    byDateCat[r.date][r.categoria] = (byDateCat[r.date][r.categoria] || 0) + r.valor;
+  });
+  const dates = Object.keys(byDateCat).sort();
+  const categoriasChart = [...new Set(rows.map(r => r.categoria))];
   if (custosChart) custosChart.destroy();
   if (dates.length) {
+    const datasets = categoriasChart.map(cat => ({
+      label: cat,
+      data: dates.map(d => byDateCat[d][cat] || 0),
+      backgroundColor: getCatColor(cat),
+      borderRadius: 4,
+      stack: 'custos',
+    }));
     custosChart = new Chart(document.getElementById('custosChart').getContext('2d'), {
       type: 'bar',
       data: {
         labels: dates.map(d => fD(d)),
-        datasets: [{
-          label: 'Custo (R$)',
-          data: dates.map(d => byDate[d]),
-          backgroundColor: 'rgba(196,169,106,0.5)',
-          borderColor: '#C4A96A',
-          borderWidth: 1,
-          borderRadius: 4,
-        }]
+        datasets,
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: false },
+          legend: { display: true, position: 'bottom', labels:{color:'#9BAA9F',font:{family:'JetBrains Mono',size:10},boxWidth:10,padding:12} },
           tooltip: {
             backgroundColor: '#17231C', borderColor: '#33453A', borderWidth: 1,
-            titleColor: '#EDE8D8', bodyColor: '#B7C2B9', padding: 12,
-            callbacks: { label: ctx => 'Custo: ' + ctx.parsed.y.toLocaleString('pt-BR', {style:'currency',currency:'BRL'}) }
+            titleColor: '#EDE8D8', bodyColor: '#B7C2B9', footerColor: '#C4A96A',
+            footerFont: { family:'JetBrains Mono', weight:'700' }, padding: 12,
+            // Some sem mostrar categorias com R$ 0 no dia, e soma o total no rodapé.
+            filter: item => item.parsed.y > 0,
+            callbacks: {
+              label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('pt-BR', {style:'currency',currency:'BRL'}),
+              footer: items => {
+                const total = items.reduce((s,i) => s + i.parsed.y, 0);
+                return 'Total do dia: ' + total.toLocaleString('pt-BR', {style:'currency',currency:'BRL'});
+              },
+            }
           }
         },
         scales: {
-          x: { ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
-          y: { ticks:{color:'#C4A96A',font:{family:'JetBrains Mono',size:10},callback:v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0})}, grid:{color:'rgba(255,255,255,0.04)'} }
+          x: { stacked:true, ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
+          y: { stacked:true, ticks:{color:'#C4A96A',font:{family:'JetBrains Mono',size:10},callback:v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0})}, grid:{color:'rgba(255,255,255,0.04)'} }
         }
       }
     });
@@ -1717,7 +1699,6 @@ function switchPage(page) {
     else el.classList.toggle('visible', page === p);
   });
   document.getElementById('metricasControls').style.display  = page==='metricas' ? '' : 'none';
-  document.getElementById('vendasControls').style.display    = page==='vendas'   ? '' : 'none';
   document.querySelectorAll('.main-tab').forEach(t => t.classList.toggle('active', t.dataset.page===page));
   refreshAll();
 }
@@ -1750,9 +1731,6 @@ async function init() {
       refreshMetricas();
     });
   });
-
-  // A aba de segmento de vendas (pipeline) já tem seu listener próprio,
-  // anexado em buildVSegTabs(), chamada dentro de fetchVendas() acima.
 
   document.getElementById('btnViewCards').addEventListener('click', () => switchView('cards'));
   document.getElementById('btnViewTable').addEventListener('click', () => switchView('table'));
