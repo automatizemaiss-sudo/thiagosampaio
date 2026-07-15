@@ -552,11 +552,9 @@
         </div>
         <div class="cards-grid" id="gridPrimary"></div>
         <div class="secondary-block" id="secondaryBlock">
-          <div class="cards-section-label" style="margin-top:4px;">DADOS SECUNDÁRIOS</div>
+          <div class="cards-section-label" style="margin-top:4px;">SUBMÉTRICAS</div>
           <div class="cards-grid" id="gridSecondary"></div>
         </div>
-        <div class="cards-section-label" style="margin-top:6px;">DADOS EXTRAS</div>
-        <div class="extras-row" id="extrasRow"></div>
       </div>
       <div class="chart-panel">
         <div class="chart-header">
@@ -584,7 +582,10 @@
         <div class="cards-section-label">FUNIL</div>
         <div class="funil-header-badge" id="funilBadge">—</div>
       </div>
+      <div class="cards-section-label">MÉTRICAS PRINCIPAIS</div>
       <div class="cards-grid" id="funilCardsGrid"></div>
+      <div class="cards-section-label" id="funilSecondaryLabel" style="display:none;">SUBMÉTRICAS</div>
+      <div class="cards-grid" id="funilCardsGridSecondary"></div>
       <div class="chart-panel">
         <div class="chart-header">
           <div class="chart-title" id="funilChartTitle">EVOLUÇÃO DIÁRIA</div>
@@ -745,73 +746,185 @@ function getCatColor(cat) {
   return catColorMap[cat];
 }
 
-const METRIC_COLORS = {
-  chamados:'#C4A96A', conectados:'#ff6b6b', vendas:'#22c55e',
-  links:'#60a5fa', taxaConexao:'#f59e0b', convTotal:'#a78bfa',
-  convConexao:'#34d399', total:'#5C6B61', naoChamados:'#2A3A31',
+// ════════════════════════════════════════════
+// TOOLTIPS — descrição de cada métrica (usadas nos cards principais e
+// secundários, tanto no GERAL quanto nas sub-abas de Segmentações/
+// Qual Webn/Templates).
+// ════════════════════════════════════════════
+const METRIC_TOOLTIPS = {
+  entregues:      { title:'Mensagens Entregues', text:'Tentativas de envio que a Meta confirmou terem chegado ao destinatário.' },
+  conectados:     { title:'Conexões',            text:'Quem efetivamente entrou em conversa (respondeu) com a automação.' },
+  links:          { title:'Links',               text:'Leads que receberam o link de checkout/produto (1 por telefone no período).' },
+  vendas:         { title:'Vendas',              text:'Vendas classificadas como válidas (excluindo repetições de webhook).' },
+  taxaConexao:    { title:'% Conexão',           text:'Conexões dividido por Mensagens Entregues (ou por Tentativas, quando Entregues não está disponível para o grupo).' },
+  convTotal:      { title:'% Conv. / Entregues', text:'Vendas dividido por Mensagens Entregues.' },
+  convConexao:    { title:'% Conv. / Conexão',   text:'Vendas dividido por Conexões.' },
+  chamados:       { title:'Tentativas de Envio', text:'Leads que você decidiu chamar e tentou enviar mensagem via WhatsApp.' },
+  enviadas:       { title:'Mensagens Enviadas',  text:'Das tentativas, quantas a Meta aceitou e efetivamente disparou.' },
+  erros:          { title:'Erros de Envio',      text:'Tentativas que não viraram mensagem entregue (rejeitadas pela Meta ou falha na entrega).' },
+  lidas:          { title:'Mensagens Lidas',     text:'Das mensagens entregues, quantas foram abertas pelo destinatário.' },
+  readRate:       { title:'Taxa de Leitura',     text:'Lidas dividido por Entregues do período (Read Rate).' },
+  semInteresse:   { title:'Sem Interesse',       text:'Quem recebeu o disparo e clicou no botão de opt-out.' },
+  transferencias: { title:'Transferências',      text:'Quem estava em conexão com a IA e foi transferido para o humano.' },
+  total:          { title:'Todos',               text:'Todos os leads da base no período, chamados ou não.' },
+  naoChamados:    { title:'Não Chamados',        text:'Leads da base que ainda não foram chamados no período.' },
 };
 
+const METRIC_COLORS = {
+  chamados:'#5C6B61', conectados:'#ff6b6b', vendas:'#22c55e',
+  links:'#60a5fa', taxaConexao:'#f59e0b', convTotal:'#a78bfa',
+  convConexao:'#34d399', total:'#3d4a41', naoChamados:'#2A3A31',
+  enviadas:'#38bdf8', entregues:'#C4A96A', erros:'#ef4444',
+  lidas:'#c084fc', readRate:'#fbbf24',
+};
+
+// Cards principais — GERAL (e mesma ordem usada nas sub-abas, ver
+// FUNIL_CARD_CFG_PRIMARY). % Conexão agora é sobre Mensagens Entregues.
 const PRIMARY_CARDS = [
-  { key:'chamados',    label:'Chamados',          icon:'📤', format:'num' },
-  { key:'conectados',  label:'Conectados',         icon:'💬', format:'num' },
-  { key:'vendas',      label:'Vendas',             icon:'💰', format:'num' },
-  { key:'taxaConexao', label:'Taxa de Conexão',    icon:'📡', format:'pct' },
-  { key:'convTotal',   label:'Conv. / Chamados',   icon:'📈', format:'pct' },
-  { key:'convConexao', label:'Conv. / Conectados', icon:'🎯', format:'pct' },
+  { key:'entregues',   label:'Mensagens Entregues', icon:'📬', format:'num' },
+  { key:'conectados',  label:'Conexões',            icon:'💬', format:'num' },
+  { key:'links',       label:'Links',               icon:'🔗', format:'num' },
+  { key:'vendas',      label:'Vendas',              icon:'💰', format:'num' },
+  { key:'taxaConexao', label:'% Conexão',           icon:'📡', format:'pct' },
+  { key:'convTotal',   label:'% Conv. / Entregues', icon:'📈', format:'pct' },
+  { key:'convConexao', label:'% Conv. / Conexão',   icon:'🎯', format:'pct' },
 ];
 
+// Submétricas — GERAL. Todas ganham tooltip (?) via METRIC_TOOLTIPS.
 const SECONDARY_CARDS = [
-  { key:'total',       label:'Todos',         icon:'👥', format:'num' },
-  { key:'naoChamados', label:'Não Chamados',  icon:'⛔', format:'num' },
-  { key:'links',       label:'Links Enviados',icon:'🔗', format:'num' },
+  { key:'chamados',       label:'Tentativas de Envio', icon:'📤', format:'num' },
+  { key:'enviadas',       label:'Mensagens Enviadas',  icon:'📨', format:'num' },
+  { key:'erros',          label:'Erros de Envio',      icon:'⚠️', format:'num' },
+  { key:'lidas',          label:'Mensagens Lidas',     icon:'👁️', format:'num' },
+  { key:'readRate',       label:'Taxa de Leitura',     icon:'📖', format:'pct' },
+  { key:'semInteresse',   label:'Sem Interesse',       icon:'🚫', format:'num' },
+  { key:'transferencias', label:'Transferências',      icon:'🔄', format:'num' },
+  { key:'total',          label:'Todos',               icon:'👥', format:'num' },
+  { key:'naoChamados',    label:'Não Chamados',        icon:'⛔', format:'num' },
 ];
 
-const EXTRAS = [
-  { key:'semInteresse',   label:'Sem Interesse', icon:'🚫' },
-  { key:'transferencias', label:'Transferências', icon:'🔄' },
+// Cards principais para as sub-abas (Segmentações/Qual Webn/Templates) —
+// mesma estrutura de 7 métricas do GERAL.
+const FUNIL_CARD_CFG_PRIMARY = [
+  { key:'entregues',   label:'Mensagens Entregues', icon:'📬', format:'num' },
+  { key:'conectados',  label:'Conexões',            icon:'💬', format:'num' },
+  { key:'links',       label:'Links',               icon:'🔗', format:'num' },
+  { key:'vendas',      label:'Vendas',              icon:'💰', format:'num' },
+  { key:'taxaConexao', label:'% Conexão',           icon:'📡', format:'pct' },
+  { key:'convTotal',   label:'% Conv. / Entregues', icon:'📈', format:'pct' },
+  { key:'convConexao', label:'% Conv. / Conexão',   icon:'🎯', format:'pct' },
 ];
 
+// Submétricas completas — só fazem sentido em TEMPLATES (Enviadas/Entregues
+// /Lidas/Erros vêm da aba Custos, agregada por template; Segmentações e
+// Qual Webn não têm esse dado, ver getFunilSecondaryCards()).
+const FUNIL_CARD_CFG_SECONDARY_FULL = [
+  { key:'chamados', label:'Tentativas de Envio', icon:'📤', format:'num' },
+  { key:'enviadas',  label:'Mensagens Enviadas', icon:'📨', format:'num' },
+  { key:'erros',     label:'Erros de Envio',     icon:'⚠️', format:'num' },
+  { key:'lidas',     label:'Mensagens Lidas',    icon:'👁️', format:'num' },
+  { key:'readRate',  label:'Taxa de Leitura',    icon:'📖', format:'pct' },
+];
+
+// Segmentações/Qual Webn: só Tentativas está disponível como submétrica
+// (não há como cruzar Enviadas/Entregues/Lidas/Erros por telefone).
+const FUNIL_CARD_CFG_SECONDARY_BASIC = [
+  { key:'chamados', label:'Tentativas de Envio', icon:'📤', format:'num' },
+];
+
+function getFunilSecondaryCards() {
+  return metricGroup === 'templates' ? FUNIL_CARD_CFG_SECONDARY_FULL : FUNIL_CARD_CFG_SECONDARY_BASIC;
+}
+
+// Métricas do gráfico "Evolução Diária" — GERAL.
 const METRICS_CONFIG = [
-  { key:'chamados',    label:'Chamados',      format:'num', on:true  },
-  { key:'conectados',  label:'Conectados',    format:'num', on:true  },
-  { key:'vendas',      label:'Vendas',        format:'num', on:true  },
-  { key:'taxaConexao', label:'Taxa Conexão',  format:'pct', on:true  },
-  { key:'convTotal',   label:'Conv. Total',   format:'pct', on:true  },
-  { key:'convConexao', label:'Conv. Conexão', format:'pct', on:true  },
-  { key:'total',       label:'Todos',         format:'num', on:false },
-  { key:'naoChamados', label:'Não Chamados',  format:'num', on:false },
-  { key:'links',       label:'Links',         format:'num', on:false },
+  { key:'entregues',   label:'Entregues',         format:'num', on:true  },
+  { key:'conectados',  label:'Conexões',          format:'num', on:true  },
+  { key:'vendas',      label:'Vendas',            format:'num', on:true  },
+  { key:'links',       label:'Links',             format:'num', on:true  },
+  { key:'taxaConexao', label:'% Conexão',         format:'pct', on:true  },
+  { key:'convTotal',   label:'% Conv. Entregues', format:'pct', on:true  },
+  { key:'convConexao', label:'% Conv. Conexão',   format:'pct', on:true  },
+  { key:'chamados',    label:'Tentativas',        format:'num', on:false },
+  { key:'enviadas',    label:'Enviadas',          format:'num', on:false },
+  { key:'erros',       label:'Erros',             format:'num', on:false },
+  { key:'lidas',       label:'Lidas',             format:'num', on:false },
+  { key:'readRate',    label:'Taxa Leitura',      format:'pct', on:false },
+  { key:'total',       label:'Todos',             format:'num', on:false },
+  { key:'naoChamados', label:'Não Chamados',      format:'num', on:false },
 ];
 const metricVis = {};
 METRICS_CONFIG.forEach(m => metricVis[m.key] = m.on);
 
-const FUNIL_METRICS_CONFIG = [
-  { key:'chamados',    label:'Prospecções', format:'num', on:true  },
-  { key:'conectados',  label:'Conexões',    format:'num', on:true  },
-  { key:'vendas',      label:'Vendas',      format:'num', on:true  },
-  { key:'taxaConexao', label:'Taxa Conexão',format:'pct', on:true  },
-  { key:'convTotal',   label:'Conv. Total', format:'pct', on:true  },
-  { key:'convConexao', label:'Conv. Conn.', format:'pct', on:true  },
+// Métricas do gráfico "Evolução Diária" — sub-abas (Segmentações/Qual
+// Webn/Templates). Templates ganha Enviadas/Erros/Lidas/Read; as demais
+// sub-abas ficam só com o funil clássico por telefone.
+const FUNIL_METRICS_CONFIG_TEMPLATES = [
+  { key:'entregues',   label:'Entregues',         format:'num', on:true  },
+  { key:'conectados',  label:'Conexões',          format:'num', on:true  },
+  { key:'vendas',      label:'Vendas',            format:'num', on:true  },
+  { key:'taxaConexao', label:'% Conexão',         format:'pct', on:true  },
+  { key:'convTotal',   label:'% Conv. Entregues', format:'pct', on:true  },
+  { key:'convConexao', label:'% Conv. Conexão',   format:'pct', on:true  },
+  { key:'chamados',    label:'Tentativas',        format:'num', on:false },
+  { key:'enviadas',    label:'Enviadas',          format:'num', on:false },
+  { key:'erros',       label:'Erros',             format:'num', on:false },
+  { key:'lidas',       label:'Lidas',             format:'num', on:false },
+  { key:'readRate',    label:'Taxa Leitura',      format:'pct', on:false },
+];
+const FUNIL_METRICS_CONFIG_BASIC = [
+  { key:'chamados',    label:'Tentativas', format:'num', on:true  },
+  { key:'conectados',  label:'Conexões',   format:'num', on:true  },
+  { key:'vendas',      label:'Vendas',     format:'num', on:true  },
+  { key:'taxaConexao', label:'% Conexão',  format:'pct', on:true  },
+  { key:'convTotal',   label:'% Conv.',    format:'pct', on:true  },
+  { key:'convConexao', label:'% Conv. Conn.', format:'pct', on:true  },
 ];
 const funilMetricVis = {};
-FUNIL_METRICS_CONFIG.forEach(m => funilMetricVis[m.key] = m.on);
+[...FUNIL_METRICS_CONFIG_TEMPLATES, ...FUNIL_METRICS_CONFIG_BASIC].forEach(m => {
+  if (!(m.key in funilMetricVis)) funilMetricVis[m.key] = m.on;
+});
+function getFunilMetricsConfig() {
+  return metricGroup === 'templates' ? FUNIL_METRICS_CONFIG_TEMPLATES : FUNIL_METRICS_CONFIG_BASIC;
+}
 
+// Tabela detalhada — GERAL
 const TABLE_COLS = [
-  { key:'date',           label:'Data',          format:'date' },
-  { key:'chamados',       label:'Chamados',       format:'num'  },
-  { key:'conectados',     label:'Conectados',     format:'num'  },
-  { key:'links',          label:'Links',          format:'num'  },
-  { key:'vendas',         label:'Vendas',         format:'num'  },
-  { key:'taxaConexao',    label:'Taxa Conexão',   format:'pct'  },
-  { key:'convTotal',      label:'Conv. Total',    format:'pct'  },
-  { key:'convConexao',    label:'Conv. Conexão',  format:'pct'  },
-  { key:'total',          label:'Todos',          format:'num'  },
-  { key:'naoChamados',    label:'Não Chamados',   format:'num'  },
-  { key:'semInteresse',   label:'Sem Interesse',  format:'num'  },
-  { key:'transferencias', label:'Transferências', format:'num'  },
+  { key:'date',           label:'Data',             format:'date' },
+  { key:'entregues',      label:'Entregues',        format:'num'  },
+  { key:'conectados',     label:'Conexões',         format:'num'  },
+  { key:'links',          label:'Links',            format:'num'  },
+  { key:'vendas',         label:'Vendas',           format:'num'  },
+  { key:'taxaConexao',    label:'% Conexão',        format:'pct'  },
+  { key:'convTotal',      label:'% Conv. Entregues',format:'pct'  },
+  { key:'convConexao',    label:'% Conv. Conexão',  format:'pct'  },
+  { key:'chamados',       label:'Tentativas',       format:'num'  },
+  { key:'enviadas',       label:'Enviadas',         format:'num'  },
+  { key:'erros',          label:'Erros',            format:'num'  },
+  { key:'lidas',          label:'Lidas',            format:'num'  },
+  { key:'readRate',       label:'Taxa Leitura',     format:'pct'  },
+  { key:'total',          label:'Todos',            format:'num'  },
+  { key:'naoChamados',    label:'Não Chamados',     format:'num'  },
+  { key:'semInteresse',   label:'Sem Interesse',    format:'num'  },
+  { key:'transferencias', label:'Transferências',   format:'num'  },
 ];
 
-const FUNIL_TABLE_COLS = [
+// Tabela detalhada — sub-abas. Templates ganha as colunas de entrega.
+const FUNIL_TABLE_COLS_TEMPLATES = [
+  { key:'date',        label:'Data',              format:'date' },
+  { key:'entregues',   label:'Entregues',         format:'num'  },
+  { key:'conectados',  label:'Conexões',          format:'num'  },
+  { key:'vendas',      label:'Vendas',            format:'num'  },
+  { key:'taxaConexao', label:'% Conexão',         format:'pct'  },
+  { key:'convTotal',   label:'% Conv. Entregues', format:'pct'  },
+  { key:'convConexao', label:'% Conv. Conexão',   format:'pct'  },
+  { key:'chamados',    label:'Tentativas',        format:'num'  },
+  { key:'enviadas',    label:'Enviadas',          format:'num'  },
+  { key:'erros',       label:'Erros',             format:'num'  },
+  { key:'lidas',       label:'Lidas',             format:'num'  },
+  { key:'readRate',    label:'Taxa Leitura',      format:'pct'  },
+];
+const FUNIL_TABLE_COLS_BASIC = [
   { key:'date',        label:'Data',          format:'date' },
   { key:'chamados',    label:'Prospecções',   format:'num'  },
   { key:'conectados',  label:'Conexões',      format:'num'  },
@@ -821,6 +934,9 @@ const FUNIL_TABLE_COLS = [
   { key:'convTotal',   label:'Conv. Total',   format:'pct'  },
   { key:'convConexao', label:'Conv. Conexão', format:'pct'  },
 ];
+function getFunilTableCols() {
+  return metricGroup === 'templates' ? FUNIL_TABLE_COLS_TEMPLATES : FUNIL_TABLE_COLS_BASIC;
+}
 
 // ════════════════════════════════════════════
 // TOAST
@@ -836,6 +952,11 @@ function showToast(msg, type = 'success', duration = 3500) {
 // PCT COLOR
 // ════════════════════════════════════════════
 function getPctColor(key, value) {
+  // OBS: % Conexão e % Conv./Entregues agora usam Mensagens Entregues como
+  // base (em vez de Tentativas). Como Entregues < Tentativas, esses
+  // percentuais tendem a ficar um pouco mais altos que antes — ajuste os
+  // limiares abaixo se quiser recalibrar as cores depois de ver os dados
+  // reais de alguns dias.
   const rules = { taxaConexao:{low:20,high:30}, convTotal:{low:2,high:6}, convConexao:{low:6,high:10} };
   const rule = rules[key];
   if (!rule) return '';
@@ -988,8 +1109,9 @@ function getFollowupsFiltered() {
   return followupsData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
 
-// Retorna o objeto { "<valor>": [{date,chamados,conectados,links,vendas}] }
-// referente ao grupo atualmente selecionado (Segmentações, Qual Webn ou Templates).
+// Retorna o objeto { "<valor>": [{date,chamados,conectados,links,vendas,
+// enviadas,entregues,lidas,erros}] } referente ao grupo atualmente
+// selecionado (Segmentações, Qual Webn ou Templates).
 function currentGroupData() {
   if (metricGroup === 'segmentacoes') return segmentacoesData;
   if (metricGroup === 'qualwebn')     return qualwebnData;
@@ -1009,7 +1131,7 @@ function segData(row) { return row.mkt; }
 
 function sum(rows, field) {
   let s = 0, has = false;
-  rows.forEach(r => { const v = segData(r)[field]; if (v !== null) { s += v; has = true; } });
+  rows.forEach(r => { const v = segData(r)[field]; if (v !== null && v !== undefined) { s += v; has = true; } });
   return has ? s : null;
 }
 
@@ -1024,27 +1146,43 @@ const fBRL = v => v === null ? null : v.toLocaleString('pt-BR', {style:'currency
 const fP   = v => v === null ? null : v.toFixed(1) + '%';
 const fD   = d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
 
+// GERAL: % Conexão e % Conv. agora são calculados sobre Mensagens
+// Entregues (não mais sobre Tentativas). Taxa de Leitura é sempre
+// recalculada como Lidas/Entregues do período (nunca somada/mediada
+// diretamente, pois é uma taxa).
 function aggregates(rows) {
   const total=sum(rows,'total'), naoChamados=sum(rows,'naoChamados'),
         chamados=sum(rows,'chamados'), conectados=sum(rows,'conectados'),
         links=sum(rows,'links'), vendas=sum(rows,'vendas'),
-        semInteresse=sum(rows,'semInteresse'), transferencias=sum(rows,'transferencias');
+        semInteresse=sum(rows,'semInteresse'), transferencias=sum(rows,'transferencias'),
+        enviadas=sum(rows,'enviadas'), entregues=sum(rows,'entregues'),
+        lidas=sum(rows,'lidas'), erros=sum(rows,'erros');
   return {
     total, naoChamados, chamados, conectados, links, vendas, semInteresse, transferencias,
-    taxaConexao: chamados && conectados !== null ? conectados/chamados*100 : null,
-    convTotal:   chamados && vendas !== null     ? vendas/chamados*100     : null,
-    convConexao: conectados && vendas !== null   ? vendas/conectados*100   : null,
+    enviadas, entregues, lidas, erros,
+    taxaConexao: entregues ? (conectados||0)/entregues*100 : null,
+    convTotal:   entregues ? (vendas||0)/entregues*100     : null,
+    convConexao: conectados ? (vendas||0)/conectados*100   : null,
+    readRate:    entregues ? (lidas||0)/entregues*100      : null,
   };
 }
 
+// Sub-abas (Segmentações/Qual Webn/Templates). "base" das taxas é Entregues
+// quando existir (Templates); nas demais sub-abas, Entregues sempre vem
+// zerado do backend, então caímos de volta para Tentativas — é a única
+// base disponível pra Segmentações/Qual Webn.
 function aggregatesFunil(rows) {
   const chamados=sumF(rows,'chamados'), conectados=sumF(rows,'conectados'),
-        links=sumF(rows,'links'), vendas=sumF(rows,'vendas');
+        links=sumF(rows,'links'), vendas=sumF(rows,'vendas'),
+        enviadas=sumF(rows,'enviadas'), entregues=sumF(rows,'entregues'),
+        lidas=sumF(rows,'lidas'), erros=sumF(rows,'erros');
+  const base = (entregues && entregues > 0) ? entregues : chamados;
   return {
-    chamados, conectados, links, vendas,
-    taxaConexao: chamados && conectados !== null ? conectados/chamados*100 : null,
-    convTotal:   chamados && vendas !== null     ? vendas/chamados*100     : null,
-    convConexao: conectados && vendas !== null   ? vendas/conectados*100   : null,
+    chamados, conectados, links, vendas, enviadas, entregues, lidas, erros,
+    taxaConexao: base ? (conectados||0)/base*100 : null,
+    convTotal:   base ? (vendas||0)/base*100     : null,
+    convConexao: conectados ? (vendas||0)/conectados*100 : null,
+    readRate:    entregues ? (lidas||0)/entregues*100 : null,
   };
 }
 
@@ -1058,22 +1196,33 @@ function setDefaultDates() {
 }
 
 // ════════════════════════════════════════════
-// CARDS — MÉTRICAS
+// TOOLTIP HTML HELPER
 // ════════════════════════════════════════════
-function buildCard(cfg, agg) {
+function tooltipHtmlFor(key) {
+  const tip = METRIC_TOOLTIPS[key];
+  if (!tip) return '';
+  return `<div class="info-wrap card-info-wrap"><span class="info-btn">?</span><div class="info-tooltip card-tooltip"><strong>${tip.title}</strong>${tip.text}</div></div>`;
+}
+
+// ════════════════════════════════════════════
+// CARDS — MÉTRICAS (GERAL)
+// ════════════════════════════════════════════
+function buildCard(cfg, agg, withTooltip) {
   const v = agg[cfg.key];
   const isPct = cfg.format === 'pct';
-  const disp  = v === null ? null : isPct ? fP(v) : fN(v);
-  const isHL  = ['chamados','conectados','vendas','taxaConexao','convTotal','convConexao'].includes(cfg.key);
+  const disp  = v === null || v === undefined ? null : isPct ? fP(v) : fN(v);
+  const isHL  = ['entregues','conectados','vendas','links','taxaConexao','convTotal','convConexao'].includes(cfg.key);
   let pctStyle = '';
-  if (isPct && v !== null) pctStyle = getPctColor(cfg.key, v);
+  if (isPct && v !== null && v !== undefined) pctStyle = getPctColor(cfg.key, v);
   const el = document.createElement('div');
   el.className = 'card' + (isHL ? ' highlight' : '');
+  if (withTooltip) el.style.cssText = 'overflow:visible; position:relative;';
   el.innerHTML = `
+    ${withTooltip ? tooltipHtmlFor(cfg.key) : ''}
     <span class="card-icon">${cfg.icon}</span>
     <div class="card-label">${cfg.label}</div>
     <div class="card-value ${isPct?'is-rate':''} ${disp===null?'na':''}" style="${pctStyle}">${disp !== null ? disp : '—'}</div>
-    ${v !== null && !isPct ? `<div class="card-sub">${Math.round(v).toLocaleString('pt-BR')} leads</div>` : ''}
+    ${v !== null && v !== undefined && !isPct ? `<div class="card-sub">${Math.round(v).toLocaleString('pt-BR')}</div>` : ''}
   `;
   return el;
 }
@@ -1081,52 +1230,25 @@ function buildCard(cfg, agg) {
 function renderCards(agg) {
   const gP = document.getElementById('gridPrimary');
   const gS = document.getElementById('gridSecondary');
-  const ex = document.getElementById('extrasRow');
-  gP.innerHTML = ''; gS.innerHTML = ''; ex.innerHTML = '';
-  PRIMARY_CARDS.forEach(c => gP.appendChild(buildCard(c, agg)));
-  SECONDARY_CARDS.forEach(c => gS.appendChild(buildCard(c, agg)));
-  EXTRAS.forEach(cfg => {
-    const v = agg[cfg.key];
-    let note = '';
-    if (v === null) note = `<div class="card-note">⚠ Coluna ainda não mapeada neste segmento</div>`;
-    const tooltips = {
-      semInteresse:   { title:'Sem Interesse',  text:'Quem recebeu o disparo e clicou no botão de opt-out.' },
-      transferencias: { title:'Transferências', text:'Quem estava em conexão com a IA e foi transferido para o humano.' },
-    };
-    const tip = tooltips[cfg.key];
-    const tipHtml = tip ? `<div class="info-wrap card-info-wrap"><span class="info-btn">?</span><div class="info-tooltip card-tooltip"><strong>${tip.title}</strong>${tip.text}</div></div>` : '';
-    const el = document.createElement('div');
-    el.className = 'card'; el.style.cssText = 'overflow:visible; position:relative;';
-    el.innerHTML = `${tipHtml}<span class="card-icon" style="display:block;">${cfg.icon}</span><div class="card-label">${cfg.label}</div><div class="card-value ${v===null?'na':''}">${v !== null ? fN(v) : '—'}</div>${note}`;
-    ex.appendChild(el);
-  });
+  gP.innerHTML = ''; gS.innerHTML = '';
+  PRIMARY_CARDS.forEach(c => gP.appendChild(buildCard(c, agg, false)));
+  SECONDARY_CARDS.forEach(c => gS.appendChild(buildCard(c, agg, true)));
 }
 
 // ════════════════════════════════════════════
 // CARDS — FUNIL (Segmentações / Qual Webn / Templates)
 // ════════════════════════════════════════════
-const FUNIL_CARD_CFG = [
-  { key:'chamados',    label:'Prospecções',        icon:'📤', format:'num', hl:true  },
-  { key:'conectados',  label:'Conexões',            icon:'💬', format:'num', hl:true  },
-  { key:'vendas',      label:'Vendas',              icon:'💰', format:'num', hl:true  },
-  { key:'taxaConexao', label:'Taxa de Conexão',     icon:'📡', format:'pct', hl:true  },
-  { key:'convTotal',   label:'Conv. / Prospecções', icon:'📈', format:'pct', hl:true  },
-  { key:'convConexao', label:'Conv. / Conexões',    icon:'🎯', format:'pct', hl:true  },
-  { key:'links',       label:'Links Enviados',      icon:'🔗', format:'num', hl:false },
-];
-
 function renderFunilCards(agg) {
   const grid = document.getElementById('funilCardsGrid');
   grid.innerHTML = '';
-  FUNIL_CARD_CFG.forEach(cfg => {
-    const v = agg[cfg.key]; const isPct = cfg.format === 'pct';
-    const disp = v === null ? null : isPct ? fP(v) : fN(v);
-    let pctStyle = ''; if (isPct && v !== null) pctStyle = getPctColor(cfg.key, v);
-    const el = document.createElement('div');
-    el.className = 'card' + (cfg.hl ? ' highlight' : '');
-    el.innerHTML = `<span class="card-icon">${cfg.icon}</span><div class="card-label">${cfg.label}</div><div class="card-value ${isPct?'is-rate':''} ${disp===null?'na':''}" style="${pctStyle}">${disp !== null ? disp : '—'}</div>${v !== null && !isPct ? `<div class="card-sub">${Math.round(v).toLocaleString('pt-BR')}</div>` : ''}`;
-    grid.appendChild(el);
-  });
+  FUNIL_CARD_CFG_PRIMARY.forEach(cfg => grid.appendChild(buildCard(cfg, agg, false)));
+
+  const secGrid  = document.getElementById('funilCardsGridSecondary');
+  const secLabel = document.getElementById('funilSecondaryLabel');
+  secGrid.innerHTML = '';
+  const secondaryCards = getFunilSecondaryCards();
+  secLabel.style.display = secondaryCards.length ? '' : 'none';
+  secondaryCards.forEach(cfg => secGrid.appendChild(buildCard(cfg, agg, true)));
 }
 
 // ════════════════════════════════════════════
@@ -1134,7 +1256,7 @@ function renderFunilCards(agg) {
 // ════════════════════════════════════════════
 function buildFunilToggles(rows) {
   const c = document.getElementById('funilChartToggles'); c.innerHTML = '';
-  FUNIL_METRICS_CONFIG.forEach(m => {
+  getFunilMetricsConfig().forEach(m => {
     const col = METRIC_COLORS[m.key], on = funilMetricVis[m.key];
     const btn = document.createElement('div');
     btn.className = 'metric-toggle' + (on ? ' active' : '');
@@ -1147,14 +1269,16 @@ function buildFunilToggles(rows) {
 
 function renderFunilChart(rows) {
   buildFunilToggles(rows);
+  const cfg = getFunilMetricsConfig();
   const labels = rows.map(r => fD(r.date));
   const sF = key => rows.map(r => {
-    if (key==='taxaConexao') return r.chamados ? (r.conectados||0)/r.chamados*100 : null;
-    if (key==='convTotal')   return r.chamados ? (r.vendas||0)/r.chamados*100 : null;
+    if (key==='taxaConexao') { const base = (r.entregues && r.entregues>0) ? r.entregues : r.chamados; return base ? (r.conectados||0)/base*100 : null; }
+    if (key==='convTotal')   { const base = (r.entregues && r.entregues>0) ? r.entregues : r.chamados; return base ? (r.vendas||0)/base*100 : null; }
     if (key==='convConexao') return r.conectados ? (r.vendas||0)/r.conectados*100 : null;
+    if (key==='readRate')    return r.entregues ? (r.lidas||0)/r.entregues*100 : null;
     return r[key];
   });
-  const datasets = FUNIL_METRICS_CONFIG.filter(m => funilMetricVis[m.key]).map(m => ({
+  const datasets = cfg.filter(m => funilMetricVis[m.key]).map(m => ({
     label:m.label, data:sF(m.key), borderColor:METRIC_COLORS[m.key],
     backgroundColor:METRIC_COLORS[m.key]+'18', borderWidth:2,
     pointRadius:rows.length>60?0:3, pointHoverRadius:5,
@@ -1165,7 +1289,7 @@ function renderFunilChart(rows) {
     type:'line', data:{labels,datasets},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,
-        callbacks:{label:ctx=>{const m=FUNIL_METRICS_CONFIG.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(1)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},
+        callbacks:{label:ctx=>{const m=cfg.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(1)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},
       scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},
         yNum:{type:'linear',position:'left',ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
         yPct:{type:'linear',position:'right',ticks:{color:'#7E8E83',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}}}}
@@ -1177,10 +1301,10 @@ function renderFunilChart(rows) {
 // ════════════════════════════════════════════
 function renderFunnelInto(containerId, agg) {
   const steps = [
-    { label:'Prospecções', value:agg.chamados  },
-    { label:'Conexões',    value:agg.conectados },
-    { label:'Links',       value:agg.links      },
-    { label:'Vendas',      value:agg.vendas     },
+    { label:'Entregues', value:agg.entregues },
+    { label:'Conexões',  value:agg.conectados },
+    { label:'Links',     value:agg.links      },
+    { label:'Vendas',    value:agg.vendas     },
   ].filter(s => s.value !== null && s.value > 0);
   const c = document.getElementById(containerId); c.innerHTML = '';
   if (!steps.length) { c.innerHTML = '<div class="empty-state">Sem dados para o funil no período.</div>'; return; }
@@ -1205,10 +1329,16 @@ function renderTable(rows) {
 
   rows.forEach(row => {
     const d=segData(row);
-    const tx=d.chamados?(d.conectados||0)/d.chamados*100:null;
-    const ct=d.chamados?(d.vendas||0)/d.chamados*100:null;
+    const tx=d.entregues?(d.conectados||0)/d.entregues*100:null;
+    const ct=d.entregues?(d.vendas||0)/d.entregues*100:null;
     const cc=d.conectados?(d.vendas||0)/d.conectados*100:null;
-    const rd={date:row.date,chamados:d.chamados,conectados:d.conectados,links:d.links,vendas:d.vendas,taxaConexao:tx,convTotal:ct,convConexao:cc,total:d.total,naoChamados:d.naoChamados,semInteresse:d.semInteresse,transferencias:d.transferencias};
+    const rr=d.entregues?(d.lidas||0)/d.entregues*100:null;
+    const rd={
+      date:row.date, entregues:d.entregues, conectados:d.conectados, links:d.links, vendas:d.vendas,
+      taxaConexao:tx, convTotal:ct, convConexao:cc, readRate:rr,
+      chamados:d.chamados, enviadas:d.enviadas, erros:d.erros, lidas:d.lidas,
+      total:d.total, naoChamados:d.naoChamados, semInteresse:d.semInteresse, transferencias:d.transferencias,
+    };
     const tr=document.createElement('tr');
     tr.innerHTML=TABLE_COLS.map(col=>renderTableCell(col, rd[col.key])).join('');
     tbody.appendChild(tr);
@@ -1217,8 +1347,9 @@ function renderTable(rows) {
   const agg=aggregates(rows);
   const footData = {
     date:'TOTAL DO PERÍODO',
-    chamados:agg.chamados, conectados:agg.conectados, links:agg.links, vendas:agg.vendas,
-    taxaConexao:agg.taxaConexao, convTotal:agg.convTotal, convConexao:agg.convConexao,
+    entregues:agg.entregues, conectados:agg.conectados, links:agg.links, vendas:agg.vendas,
+    taxaConexao:agg.taxaConexao, convTotal:agg.convTotal, convConexao:agg.convConexao, readRate:agg.readRate,
+    chamados:agg.chamados, enviadas:agg.enviadas, erros:agg.erros, lidas:agg.lidas,
     total:agg.total, naoChamados:agg.naoChamados, semInteresse:agg.semInteresse, transferencias:agg.transferencias,
   };
   document.getElementById('tableFoot').innerHTML = `<tr>${TABLE_COLS.map(col => renderTableFootCell(col, footData[col.key])).join('')}</tr>`;
@@ -1228,26 +1359,34 @@ function renderTable(rows) {
 // TABLE — FUNIL (Segmentações / Qual Webn / Templates)
 // ════════════════════════════════════════════
 function renderFunilTable(rows) {
-  document.getElementById('funilTableHead').innerHTML = `<tr>${FUNIL_TABLE_COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
+  const cols = getFunilTableCols();
+  document.getElementById('funilTableHead').innerHTML = `<tr>${cols.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
   const tbody = document.getElementById('funilTableBody'); tbody.innerHTML = '';
 
   rows.forEach(row => {
-    const tx = row.chamados ? (row.conectados||0)/row.chamados*100 : null;
-    const ct = row.chamados ? (row.vendas||0)/row.chamados*100 : null;
+    const base = (row.entregues && row.entregues > 0) ? row.entregues : row.chamados;
+    const tx = base ? (row.conectados||0)/base*100 : null;
+    const ct = base ? (row.vendas||0)/base*100 : null;
     const cc = row.conectados ? (row.vendas||0)/row.conectados*100 : null;
-    const rd = { date:row.date, chamados:row.chamados, conectados:row.conectados, links:row.links, vendas:row.vendas, taxaConexao:tx, convTotal:ct, convConexao:cc };
+    const rr = row.entregues ? (row.lidas||0)/row.entregues*100 : null;
+    const rd = {
+      date:row.date, entregues:row.entregues, conectados:row.conectados, links:row.links, vendas:row.vendas,
+      taxaConexao:tx, convTotal:ct, convConexao:cc, readRate:rr,
+      chamados:row.chamados, enviadas:row.enviadas, erros:row.erros, lidas:row.lidas,
+    };
     const tr = document.createElement('tr');
-    tr.innerHTML = FUNIL_TABLE_COLS.map(col => renderTableCell(col, rd[col.key])).join('');
+    tr.innerHTML = cols.map(col => renderTableCell(col, rd[col.key])).join('');
     tbody.appendChild(tr);
   });
 
   const agg = aggregatesFunil(rows);
   const footData = {
     date:'TOTAL DO PERÍODO',
-    chamados:agg.chamados, conectados:agg.conectados, links:agg.links, vendas:agg.vendas,
-    taxaConexao:agg.taxaConexao, convTotal:agg.convTotal, convConexao:agg.convConexao,
+    entregues:agg.entregues, conectados:agg.conectados, links:agg.links, vendas:agg.vendas,
+    taxaConexao:agg.taxaConexao, convTotal:agg.convTotal, convConexao:agg.convConexao, readRate:agg.readRate,
+    chamados:agg.chamados, enviadas:agg.enviadas, erros:agg.erros, lidas:agg.lidas,
   };
-  document.getElementById('funilTableFoot').innerHTML = `<tr>${FUNIL_TABLE_COLS.map(col => renderTableFootCell(col, footData[col.key])).join('')}</tr>`;
+  document.getElementById('funilTableFoot').innerHTML = `<tr>${cols.map(col => renderTableFootCell(col, footData[col.key])).join('')}</tr>`;
 }
 
 function renderTableCell(col, v) {
@@ -1257,7 +1396,7 @@ function renderTableCell(col, v) {
     const s = getPctColor(col.key, v);
     return `<td style="${s}">${v.toFixed(1)}%</td>`;
   }
-  const cls = col.key==='vendas' ? 'val-green' : col.key==='chamados' ? 'val-red' : '';
+  const cls = col.key==='vendas' ? 'val-green' : col.key==='erros' ? 'val-red' : '';
   return `<td class="${cls}">${Math.round(v).toLocaleString('pt-BR')}</td>`;
 }
 
@@ -1268,7 +1407,7 @@ function renderTableFootCell(col, v) {
     const s = getPctColor(col.key, v);
     return `<td style="${s}">${v.toFixed(1)}%</td>`;
   }
-  const cls = col.key==='vendas' ? 'val-green' : col.key==='chamados' ? 'val-red' : '';
+  const cls = col.key==='vendas' ? 'val-green' : col.key==='erros' ? 'val-red' : '';
   return `<td class="${cls}">${Math.round(v).toLocaleString('pt-BR')}</td>`;
 }
 
@@ -1291,7 +1430,14 @@ function buildToggles() {
 function renderChart(rows) {
   buildToggles();
   const labels=rows.map(r=>fD(r.date));
-  const series=key=>rows.map(r=>{const d=segData(r);if(key==='taxaConexao')return d.chamados?(d.conectados||0)/d.chamados*100:null;if(key==='convTotal')return d.chamados?(d.vendas||0)/d.chamados*100:null;if(key==='convConexao')return d.conectados?(d.vendas||0)/d.conectados*100:null;return d[key];});
+  const series=key=>rows.map(r=>{
+    const d=segData(r);
+    if(key==='taxaConexao')return d.entregues?(d.conectados||0)/d.entregues*100:null;
+    if(key==='convTotal')  return d.entregues?(d.vendas||0)/d.entregues*100:null;
+    if(key==='convConexao')return d.conectados?(d.vendas||0)/d.conectados*100:null;
+    if(key==='readRate')   return d.entregues?(d.lidas||0)/d.entregues*100:null;
+    return d[key];
+  });
   const datasets=METRICS_CONFIG.filter(m=>metricVis[m.key]).map(m=>({label:m.label,data:series(m.key),borderColor:METRIC_COLORS[m.key],backgroundColor:METRIC_COLORS[m.key]+'18',borderWidth:2,pointRadius:rows.length>60?0:3,pointHoverRadius:5,tension:0.35,fill:false,yAxisID:m.format==='pct'?'yPct':'yNum',spanGaps:true}));
   if (lineChart) lineChart.destroy();
   lineChart=new Chart(document.getElementById('lineChart').getContext('2d'),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,callbacks:{label:ctx=>{const m=METRICS_CONFIG.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(1)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},yNum:{type:'linear',position:'left',ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},yPct:{type:'linear',position:'right',ticks:{color:'#7E8E83',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}}}}});
