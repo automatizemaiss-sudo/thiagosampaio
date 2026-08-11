@@ -28,9 +28,7 @@
     --danger:    #C0392B;
     --danger-glow: rgba(192,57,43,0.16);
   }
-
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   body {
     background: var(--black);
     color: var(--text);
@@ -38,14 +36,12 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
-
   body::before {
     content: '';
     position: fixed; inset: 0;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
     pointer-events: none; z-index: 0; opacity: 0.4;
   }
-
   /* ── HEADER ── */
   header {
     position: relative;
@@ -55,9 +51,7 @@
     gap: 20px; flex-wrap: wrap;
     background: linear-gradient(180deg, rgba(196,169,106,0.06) 0%, transparent 100%);
   }
-
   .logo-area { display: flex; align-items: center; gap: 14px; }
-
   .logo-icon {
     width: 40px; height: 40px; background: var(--accent);
     border-radius: 10px; display: flex; align-items: center; justify-content: center;
@@ -65,15 +59,11 @@
     font-size: 16px; letter-spacing: -1px; color: var(--black);
     box-shadow: 0 0 20px var(--accent-glow);
   }
-
   h1 { font-family: 'Libre Baskerville', serif; font-weight: 700; font-size: 24px; letter-spacing: 1.5px; line-height: 1; }
   h1 span { color: var(--accent); font-style: italic; font-weight: 400; }
-
   .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-
   .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
   .status-label { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
-
   .btn-sync {
     display: flex; align-items: center; gap: 7px;
     padding: 8px 16px; border-radius: 8px;
@@ -86,10 +76,8 @@
   .btn-sync.loading { opacity: 0.6; pointer-events: none; }
   .btn-sync.loading svg { animation: spin 0.8s linear infinite; }
   .btn-sync.success { border-color: rgba(34,197,94,0.5); color: var(--green); background: rgba(34,197,94,0.06); }
-
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   @keyframes spin  { to { transform: rotate(360deg); } }
-
   /* ── GLOBAL DATE BAR ── */
   .global-date-bar {
     position: relative; z-index: 11;
@@ -102,7 +90,6 @@
     font-size: 11px; color: var(--text-dim);
     font-family: 'JetBrains Mono', monospace; letter-spacing: 1px;
   }
-
   /* ── MAIN TABS ── */
   .main-tabs {
     position: relative; z-index: 10;
@@ -112,7 +99,6 @@
     background: var(--black);
     overflow-x: auto;
   }
-
   .main-tab {
     padding: 14px 22px;
     border: none; border-bottom: 2px solid transparent;
@@ -123,7 +109,6 @@
   }
   .main-tab:hover { color: var(--text); }
   .main-tab.active { color: var(--text); border-bottom-color: var(--accent); }
-
   /* ── CONTROLS ── */
   .controls {
     position: relative; z-index: 10;
@@ -132,13 +117,11 @@
     border-bottom: 1px solid var(--border);
     background: var(--surface);
   }
-
   .seg-tabs {
     display: flex; gap: 3px;
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: 10px; padding: 4px;
   }
-
   .seg-tab {
     padding: 7px 15px; border-radius: 7px; border: none;
     background: transparent; color: var(--text-dim);
@@ -147,13 +130,11 @@
   }
   .seg-tab:hover { color: var(--text); background: var(--surface3); }
   .seg-tab.active { background: var(--accent); color: var(--black); box-shadow: 0 0 16px var(--accent-glow); }
-
   .view-toggle {
     display: flex; gap: 3px;
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: 10px; padding: 4px;
   }
-
   .view-btn {
     padding: 7px 13px; border-radius: 7px; border: 1px solid transparent;
     background: transparent; color: var(--text-dim);
@@ -163,10 +144,8 @@
   }
   .view-btn:hover { color: var(--text); background: var(--surface3); }
   .view-btn.active { background: var(--surface3); color: var(--text); border-color: var(--border-accent); }
-
   .date-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .date-label { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
-
   input[type="date"] {
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: 8px; color: var(--text);
@@ -175,7 +154,6 @@
   }
   input[type="date"]:focus { border-color: var(--accent); }
   input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
-
   .btn-apply {
     padding: 8px 18px; background: var(--accent); border: none;
     border-radius: 8px; color: var(--black); font-family: 'Outfit', sans-serif;
@@ -183,7 +161,6 @@
     box-shadow: 0 0 14px var(--accent-glow);
   }
   .btn-apply:hover { background: var(--accent-dark); transform: translateY(-1px); }
-
   /* ── SUB-TABS DE FUNIL ── */
   .funil-bar {
     position: relative; z-index: 9;
@@ -193,7 +170,6 @@
     background: var(--surface2);
     overflow-x: auto;
   }
-
   .funil-bar-label {
     font-family: 'JetBrains Mono', monospace;
     font-size: 9px; letter-spacing: 2px;
@@ -201,7 +177,6 @@
     padding-right: 16px; white-space: nowrap; flex-shrink: 0;
     border-right: 1px solid var(--border); margin-right: 6px;
   }
-
   .funil-tab {
     padding: 10px 18px;
     border: none; border-bottom: 2px solid transparent;
@@ -212,7 +187,6 @@
   .funil-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
   .funil-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
   .funil-tab.funil-todos.active { color: var(--text); border-bottom-color: var(--text-dim); }
-
   /* ── TOOLTIP (?) ── */
   .info-wrap { position: relative; display: inline-flex; align-items: center; }
   .info-btn {
@@ -250,15 +224,12 @@
   .card-info-wrap { position: absolute; top: 14px; right: 14px; z-index: 10; }
   .card-tooltip { left: auto; right: 0; transform: none; width: 220px; }
   .card-tooltip::after { left: auto; right: 14px; transform: none; }
-
   /* ── MAIN ── */
   main { position: relative; z-index: 1; padding: 26px 40px; display: flex; flex-direction: column; gap: 26px; }
-
   /* ── CARDS ── */
   .cards-section { display: flex; flex-direction: column; gap: 10px; }
   .cards-section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .cards-section-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 3px; color: var(--text-muted); text-transform: uppercase; }
-
   .btn-toggle-secondary {
     display: flex; align-items: center; gap: 7px;
     padding: 6px 14px; border-radius: 8px;
@@ -268,9 +239,7 @@
   }
   .btn-toggle-secondary:hover { border-color: var(--border-accent); color: var(--text); }
   .btn-toggle-secondary.active { border-color: var(--border-accent); color: var(--text); background: rgba(196,169,106,0.08); }
-
   .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 12px; }
-
   .card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 14px; padding: 18px; position: relative; overflow: hidden;
@@ -289,10 +258,8 @@
   .card.amber-highlight::before { background: var(--amber); opacity: 1; }
   .card.purple-highlight { border-color: rgba(167,139,250,0.35); background: linear-gradient(135deg, var(--surface) 0%, rgba(167,139,250,0.05) 100%); }
   .card.purple-highlight::before { background: var(--purple); opacity: 1; }
-
   .secondary-block { display: none; flex-direction: column; gap: 10px; }
   .secondary-block.visible { display: flex; }
-
   .card-icon { font-size: 16px; margin-bottom: 10px; display: block; }
   .card-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500; margin-bottom: 5px; }
   .card-value { font-family: 'Libre Baskerville', serif; font-weight: 700; font-size: 34px; line-height: 1; color: var(--text); }
@@ -302,16 +269,13 @@
   .card-value.na { font-size: 26px; color: var(--text-muted); }
   .card-sub { font-size: 11px; color: var(--text-muted); margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
   .card-note { font-size: 10px; color: var(--amber); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
-
   .extras-row { display: flex; gap: 12px; flex-wrap: wrap; }
   .extras-row .card { flex: 1; min-width: 170px; max-width: 260px; border-color: rgba(245,158,11,0.2); overflow: visible; }
   .extras-row .card::before { background: var(--amber); }
   .extras-row .card:hover { border-color: rgba(245,158,11,0.45); }
-
   /* ── TABLE ── */
   #tableView { display: none; }
   #tableView.visible { display: block; }
-
   .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   thead tr { background: var(--surface2); border-bottom: 1px solid var(--border-accent); }
@@ -330,7 +294,6 @@
   tfoot tr { border-top: 1px solid var(--border-accent); background: var(--surface2); }
   tfoot td { padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; }
   tfoot td:first-child { color: var(--accent); font-size: 10px; letter-spacing: 2px; }
-
   /* ── CHART ── */
   .chart-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
   .chart-header { padding: 18px 22px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
@@ -340,7 +303,6 @@
   .metric-toggle .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .metric-toggle.active { border-color: transparent; color: var(--text); }
   .chart-body { padding: 18px 22px 22px; height: 300px; position: relative; }
-
   /* ── FUNNEL ── */
   .funnel-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 8px; }
   .funnel-title { font-family: 'Libre Baskerville', serif; font-weight: 700; font-style: italic; font-size: 17px; letter-spacing: 0.5px; margin-bottom: 6px; }
@@ -353,7 +315,6 @@
   .funnel-step-val { font-family: 'Libre Baskerville', serif; font-weight: 700; font-size: 20px; color: var(--black); text-shadow: none; }
   .funnel-pct { width: 54px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); white-space: nowrap; }
   .funnel-connector { width: 2px; height: 8px; background: linear-gradient(to bottom, var(--accent), transparent); margin-left: calc(50% - 1px); }
-
   /* ── VENDAS PAGE ── */
   #vendasPage { display: none; }
   #vendasPage.visible { display: flex; flex-direction: column; gap: 26px; }
@@ -364,7 +325,6 @@
   .seg-badge.webhook    { background: rgba(96,165,250,0.15); color: #60a5fa; }
   .seg-badge.assinatura { background: rgba(167,139,250,0.15); color: #a78bfa; }
   .seg-badge.geral      { background: rgba(196,169,106,0.15); color: var(--accent); }
-
   /* ── FUNIL VIEW ── */
   #funilView { display: none; }
   #funilView.visible { display: flex; flex-direction: column; gap: 26px; }
@@ -375,19 +335,14 @@
     font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent);
     letter-spacing: 1px; text-transform: uppercase;
   }
-
   /* ── FUNIL TABLE VIEW ── */
   #funilTableView { display: none; }
   #funilTableView.visible { display: block; }
-
   /* ── TRANSFERÊNCIAS PAGE ── */
   #transferenciasPage { display: none; }
   #transferenciasPage.visible { display: flex; flex-direction: column; gap: 26px; }
-
   .transf-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
-
   .transf-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
-
   /* badges sim/não */
   .bool-badge {
     display: inline-flex; align-items: center; gap: 5px;
@@ -397,11 +352,9 @@
   }
   .bool-badge.sim  { background: rgba(34,197,94,0.15); color: var(--green); }
   .bool-badge.nao  { background: rgba(255,255,255,0.05); color: var(--text-muted); }
-
   /* linha de motivo expandível */
   .motivo-cell { max-width: 340px; white-space: normal; line-height: 1.45; color: var(--text-dim) !important; font-size: 11px !important; }
   .motivo-none { color: var(--text-muted) !important; font-style: italic; }
-
   /* busca */
   .search-wrap { display: flex; align-items: center; gap: 10px; }
   .search-input {
@@ -413,24 +366,19 @@
   }
   .search-input:focus { border-color: var(--accent); }
   .search-input::placeholder { color: var(--text-muted); }
-
   /* ── CUSTOS PAGE ── */
   #custosPage { display: none; }
   #custosPage.visible { display: flex; flex-direction: column; gap: 26px; }
-
   .custos-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
   .custos-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
-
   .cat-badge {
     display: inline-block; padding: 2px 9px; border-radius: 5px;
     font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
     font-family: 'JetBrains Mono', monospace; white-space: nowrap;
   }
-
   /* ── FOLLOW-UPS PAGE ── */
   #followupsPage { display: none; }
   #followupsPage.visible { display: flex; flex-direction: column; gap: 26px; }
-
   /* ── TOAST ── */
   .toast {
     position: fixed; bottom: 28px; right: 28px; z-index: 2000;
@@ -445,7 +393,6 @@
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.4); color: var(--green); }
   .toast.error   { background: rgba(192,57,43,0.12);  border: 1px solid rgba(192,57,43,0.4);  color: #ff8a7a; }
-
   /* ── LOADING ── */
   .overlay { position: fixed; inset: 0; background: rgba(11,24,18,0.93); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; gap: 14px; }
   .spinner { width: 42px; height: 42px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -454,7 +401,6 @@
   .error-box h3 { font-family: 'Libre Baskerville', serif; font-weight: 700; font-size: 20px; color: var(--danger); margin-bottom: 8px; }
   .error-box p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
   .empty-state { padding: 40px; text-align: center; color: var(--text-muted); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
-
   @media (max-width: 768px) {
     header, .global-date-bar, .controls, main { padding-left: 16px; padding-right: 16px; }
     .main-tabs, .funil-bar { padding-left: 16px; }
@@ -466,14 +412,11 @@
 </style>
 </head>
 <body>
-
 <div class="toast" id="toast"></div>
-
 <div class="overlay" id="loadingOverlay">
   <div class="spinner"></div>
   <div class="overlay-text">CARREGANDO DADOS...</div>
 </div>
-
 <header>
   <div class="logo-area">
     <div class="logo-icon">TS</div>
@@ -491,7 +434,6 @@
     <div class="status-label" id="statusLabel">AGUARDANDO</div>
   </div>
 </header>
-
 <div class="global-date-bar">
   <span class="date-label">PERÍODO</span>
   <div class="date-group">
@@ -502,7 +444,6 @@
     <button class="btn-apply" id="btnApply">APLICAR</button>
   </div>
 </div>
-
 <div class="main-tabs">
   <button class="main-tab active" data-page="metricas">📊 MÉTRICAS</button>
   <button class="main-tab" data-page="vendas">💰 VENDAS</button>
@@ -510,7 +451,6 @@
   <button class="main-tab" data-page="custos">💸 CUSTOS</button>
   <button class="main-tab" data-page="followups">🔁 FOLLOW-UPS</button>
 </div>
-
 <!-- ── MÉTRICAS CONTROLS ── -->
 <div id="metricasControls">
   <div class="controls">
@@ -536,9 +476,7 @@
     <span id="funilTabsContainer" style="display:contents;"></span>
   </div>
 </div>
-
 <main>
-
   <!-- ══ MÉTRICAS PAGE ══ -->
   <div id="metricasPage">
     <div id="cardsView">
@@ -608,7 +546,6 @@
       </div>
     </div>
   </div>
-
   <!-- ══ VENDAS PAGE ══ -->
   <div id="vendasPage">
     <div class="cards-section-label">FATURAMENTO DO PERÍODO</div>
@@ -626,19 +563,16 @@
       </table>
     </div>
   </div>
-
   <!-- ══ TRANSFERÊNCIAS PAGE ══ -->
   <div id="transferenciasPage">
     <div class="cards-section-label">RESUMO DO PERÍODO</div>
     <div class="transf-cards-grid" id="transfCardsGrid"></div>
-
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
       <div class="cards-section-label">TRANSFERÊNCIAS DETALHADAS</div>
       <div class="search-wrap">
         <input class="search-input" id="transfSearch" type="text" placeholder="Buscar por nome ou número..."/>
       </div>
     </div>
-
     <div class="transf-table-wrap">
       <table>
         <thead id="transfTableHead"></thead>
@@ -647,17 +581,14 @@
       </table>
     </div>
   </div>
-
   <!-- ══ CUSTOS PAGE ══ -->
   <div id="custosPage">
     <div class="cards-section-label">RESUMO DE CUSTOS</div>
     <div class="custos-cards-grid" id="custosCardsGrid"></div>
-
     <div class="chart-panel">
       <div class="chart-header"><div class="chart-title">EVOLUÇÃO DE CUSTOS</div></div>
       <div class="chart-body"><canvas id="custosChart"></canvas></div>
     </div>
-
     <div class="cards-section-label">DETALHAMENTO DE CUSTOS</div>
     <div class="custos-table-wrap">
       <table>
@@ -667,19 +598,16 @@
       </table>
     </div>
   </div>
-
   <!-- ══ FOLLOW-UPS PAGE ══ -->
   <div id="followupsPage">
     <div class="cards-section-label">RESUMO DE FOLLOW-UPS</div>
     <div class="vendas-cards-grid" id="followupsCardsGrid"></div>
-
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
       <div class="cards-section-label">FOLLOW-UPS DETALHADOS</div>
       <div class="search-wrap">
         <input class="search-input" id="followupsSearch" type="text" placeholder="Buscar por nome ou número..."/>
       </div>
     </div>
-
     <div class="vendas-table-wrap">
       <table>
         <thead id="followupsTableHead"></thead>
@@ -688,9 +616,7 @@
       </table>
     </div>
   </div>
-
 </main>
-
 <script>
 // ════════════════════════════════════════════
 // CONFIG
@@ -699,7 +625,6 @@
 // gerado a partir do arquivo Code.gs fornecido junto com este dashboard,
 // vinculado à planilha "dados_performance_automacao_tsnutri".
 const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuSEZtLu3vP3nhOfu7Xx8ZgSuh0Ty-gvbOD1fwsskDVuZ0xbyIaQ_1diBU7n5NSwb0/exec';
-
 // ════════════════════════════════════════════
 // CONFIG DE ABAS — mude para true/false para mostrar/esconder cada aba
 // principal do dashboard, sem precisar mexer em mais nada.
@@ -711,7 +636,6 @@ const TABS_CONFIG = {
   custos:          true,
   followups:       true,
 };
-
 // ════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════
@@ -723,18 +647,15 @@ let templatesData      = {};
 let transferenciasData = [];
 let custosData         = [];
 let followupsData      = [];
-
 let metricGroup  = 'geral'; // 'geral' | 'segmentacoes' | 'qualwebn' | 'templates'
 let activeSubTab = null;    // sub-aba ativa dentro de segmentacoes/qualwebn/templates
 let viewMode     = 'cards';
 let showSecondary= false;
 let activePage   = 'metricas';
-
 let lineChart    = null;
 let vendasChart  = null;
 let funilChart   = null;
 let custosChart  = null;
-
 // Paleta de cores para categorias de custo
 const CAT_COLORS = ['#C4A96A','#60a5fa','#f59e0b','#a78bfa','#34d399','#fb923c','#f472b6'];
 const catColorMap = {};
@@ -745,7 +666,6 @@ function getCatColor(cat) {
   }
   return catColorMap[cat];
 }
-
 // ════════════════════════════════════════════
 // TOOLTIPS — descrição de cada métrica (usadas nos cards principais e
 // secundários, tanto no GERAL quanto nas sub-abas de Segmentações/
@@ -768,16 +688,15 @@ const METRIC_TOOLTIPS = {
   transferencias: { title:'Transferências',      text:'Quem estava em conexão com a IA e foi transferido para o humano.' },
   total:          { title:'Todos',               text:'Todos os leads da base no período, chamados ou não.' },
   naoChamados:    { title:'Não Chamados',        text:'Leads da base que não foram chamados por erro de dados: telefone ou e-mail inválidos.' },
+  followupsMarcados: { title:'Follow-ups Marcados', text:'Contatos únicos que tiveram um follow-up marcado no dia (data de "momento em que foi marcado"). Se o mesmo telefone for marcado mais de uma vez no mesmo dia, conta só uma vez.' },
 };
-
 const METRIC_COLORS = {
   chamados:'#5C6B61', conectados:'#ff6b6b', vendas:'#22c55e',
   links:'#60a5fa', taxaConexao:'#f59e0b', convTotal:'#a78bfa',
   convConexao:'#34d399', total:'#3d4a41', naoChamados:'#2A3A31',
   enviadas:'#38bdf8', entregues:'#C4A96A', erros:'#ef4444',
-  lidas:'#c084fc', readRate:'#fbbf24',
+  lidas:'#c084fc', readRate:'#fbbf24', followupsMarcados:'#fb923c',
 };
-
 // Cards principais — GERAL (e mesma ordem usada nas sub-abas, ver
 // FUNIL_CARD_CFG_PRIMARY). % Conexão agora é sobre Mensagens Entregues.
 const PRIMARY_CARDS = [
@@ -789,7 +708,6 @@ const PRIMARY_CARDS = [
   { key:'convTotal',   label:'% Conv. / Entregues', icon:'📈', format:'pct' },
   { key:'convConexao', label:'% Conv. / Conexão',   icon:'🎯', format:'pct' },
 ];
-
 // Submétricas — GERAL. Todas ganham tooltip (?) via METRIC_TOOLTIPS.
 const SECONDARY_CARDS = [
   { key:'chamados',       label:'Tentativas de Envio', icon:'📤', format:'num' },
@@ -801,8 +719,8 @@ const SECONDARY_CARDS = [
   { key:'transferencias', label:'Transferências',      icon:'🔄', format:'num' },
   { key:'total',          label:'Todos',               icon:'👥', format:'num' },
   { key:'naoChamados',    label:'Não Chamados',        icon:'⛔', format:'num' },
+  { key:'followupsMarcados', label:'Follow-ups Marcados', icon:'📌', format:'num' },
 ];
-
 // Cards principais para as sub-abas (Segmentações/Qual Webn/Templates) —
 // mesma estrutura de 7 métricas do GERAL.
 const FUNIL_CARD_CFG_PRIMARY = [
@@ -814,7 +732,6 @@ const FUNIL_CARD_CFG_PRIMARY = [
   { key:'convTotal',   label:'% Conv. / Entregues', icon:'📈', format:'pct' },
   { key:'convConexao', label:'% Conv. / Conexão',   icon:'🎯', format:'pct' },
 ];
-
 // Submétricas completas — só fazem sentido em TEMPLATES (Enviadas/Entregues
 // /Lidas/Erros vêm da aba Custos, agregada por template; Segmentações e
 // Qual Webn não têm esse dado, ver getFunilSecondaryCards()).
@@ -825,17 +742,14 @@ const FUNIL_CARD_CFG_SECONDARY_FULL = [
   { key:'lidas',     label:'Mensagens Lidas',    icon:'👁️', format:'num' },
   { key:'readRate',  label:'Taxa de Leitura',    icon:'📖', format:'pct' },
 ];
-
 // Segmentações/Qual Webn: só Tentativas está disponível como submétrica
 // (não há como cruzar Enviadas/Entregues/Lidas/Erros por telefone).
 const FUNIL_CARD_CFG_SECONDARY_BASIC = [
   { key:'chamados', label:'Tentativas de Envio', icon:'📤', format:'num' },
 ];
-
 function getFunilSecondaryCards() {
   return metricGroup === 'templates' ? FUNIL_CARD_CFG_SECONDARY_FULL : FUNIL_CARD_CFG_SECONDARY_BASIC;
 }
-
 // Métricas do gráfico "Evolução Diária" — GERAL.
 const METRICS_CONFIG = [
   { key:'entregues',   label:'Entregues',         format:'num', on:true  },
@@ -852,10 +766,10 @@ const METRICS_CONFIG = [
   { key:'readRate',    label:'Taxa Leitura',      format:'pct', on:false },
   { key:'total',       label:'Todos',             format:'num', on:false },
   { key:'naoChamados', label:'Não Chamados',      format:'num', on:false },
+  { key:'followupsMarcados', label:'Follow-ups Marcados', format:'num', on:false },
 ];
 const metricVis = {};
 METRICS_CONFIG.forEach(m => metricVis[m.key] = m.on);
-
 // Métricas do gráfico "Evolução Diária" — sub-abas (Segmentações/Qual
 // Webn/Templates). Templates ganha Enviadas/Erros/Lidas/Read; as demais
 // sub-abas ficam só com o funil clássico por telefone.
@@ -887,7 +801,6 @@ const funilMetricVis = {};
 function getFunilMetricsConfig() {
   return metricGroup === 'templates' ? FUNIL_METRICS_CONFIG_TEMPLATES : FUNIL_METRICS_CONFIG_BASIC;
 }
-
 // Tabela detalhada — GERAL
 const TABLE_COLS = [
   { key:'date',           label:'Data',             format:'date' },
@@ -907,8 +820,8 @@ const TABLE_COLS = [
   { key:'naoChamados',    label:'Não Chamados',     format:'num'  },
   { key:'semInteresse',   label:'Sem Interesse',    format:'num'  },
   { key:'transferencias', label:'Transferências',   format:'num'  },
+  { key:'followupsMarcados', label:'Follow-ups Marcados', format:'num' },
 ];
-
 // Tabela detalhada — sub-abas. Templates ganha as colunas de entrega.
 const FUNIL_TABLE_COLS_TEMPLATES = [
   { key:'date',        label:'Data',              format:'date' },
@@ -937,7 +850,6 @@ const FUNIL_TABLE_COLS_BASIC = [
 function getFunilTableCols() {
   return metricGroup === 'templates' ? FUNIL_TABLE_COLS_TEMPLATES : FUNIL_TABLE_COLS_BASIC;
 }
-
 // ════════════════════════════════════════════
 // TOAST
 // ════════════════════════════════════════════
@@ -947,7 +859,6 @@ function showToast(msg, type = 'success', duration = 3500) {
   t.className = `toast ${type} show`;
   setTimeout(() => t.classList.remove('show'), duration);
 }
-
 // ════════════════════════════════════════════
 // PCT COLOR
 // ════════════════════════════════════════════
@@ -964,7 +875,6 @@ function getPctColor(key, value) {
   if (value > rule.high) return 'color: var(--green);';
   return 'color: var(--text);';
 }
-
 // ════════════════════════════════════════════
 // FETCH
 // ════════════════════════════════════════════
@@ -976,7 +886,6 @@ async function fetchData() {
     setStatus('csv');
   } catch(e) { setStatus('error'); showError(); }
 }
-
 async function fetchVendas() {
   try {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=vendas');
@@ -984,7 +893,6 @@ async function fetchVendas() {
     vendasData = await r.json();
   } catch(e) { vendasData = []; }
 }
-
 async function fetchSegmentacoes() {
   try {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=segmentacoes');
@@ -992,7 +900,6 @@ async function fetchSegmentacoes() {
     segmentacoesData = await r.json();
   } catch(e) { segmentacoesData = {}; }
 }
-
 async function fetchQualWebn() {
   try {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=qualwebn');
@@ -1000,7 +907,6 @@ async function fetchQualWebn() {
     qualwebnData = await r.json();
   } catch(e) { qualwebnData = {}; }
 }
-
 async function fetchTemplates() {
   try {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=templates');
@@ -1008,7 +914,6 @@ async function fetchTemplates() {
     templatesData = await r.json();
   } catch(e) { templatesData = {}; }
 }
-
 async function fetchTransferencias() {
   try {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=transferencias');
@@ -1016,7 +921,6 @@ async function fetchTransferencias() {
     transferenciasData = await r.json();
   } catch(e) { transferenciasData = []; }
 }
-
 async function fetchCustos() {
   try {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=custos');
@@ -1024,7 +928,6 @@ async function fetchCustos() {
     custosData = await r.json();
   } catch(e) { custosData = []; }
 }
-
 async function fetchFollowups() {
   try {
     const r = await fetch(APP_SCRIPT_URL + '?sheet=followups');
@@ -1032,7 +935,6 @@ async function fetchFollowups() {
     followupsData = await r.json();
   } catch(e) { followupsData = []; }
 }
-
 // ════════════════════════════════════════════
 // SYNC VENDAS
 // ════════════════════════════════════════════
@@ -1057,7 +959,6 @@ async function sincronizarVendas() {
     showToast('Falha na requisição.', 'error');
   }
 }
-
 // ════════════════════════════════════════════
 // UTILS
 // ════════════════════════════════════════════
@@ -1072,43 +973,36 @@ function setStatus(s) {
   dot.style.cssText = 'width:7px;height:7px;border-radius:50%;' + (styles[s] || '');
   lbl.textContent = {online:'AO VIVO', csv:'CSV PÚBLICO', error:'ERRO'}[s] || '—';
 }
-
 function showError() {
   document.getElementById('loadingOverlay').innerHTML = `
     <div class="error-box"><h3>ERRO AO CARREGAR</h3>
     <p>Não foi possível buscar os dados.<br>Verifique se o App Script está configurado.</p></div>`;
 }
-
 function getFiltered() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   return allData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
-
 function getVendasFiltered() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   return vendasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
-
 function getTransfFiltered() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   return transferenciasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
-
 function getCustosFiltered() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   return custosData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
-
 function getFollowupsFiltered() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   return followupsData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
-
 // Retorna o objeto { "<valor>": [{date,chamados,conectados,links,vendas,
 // enviadas,entregues,lidas,erros}] } referente ao grupo atualmente
 // selecionado (Segmentações, Qual Webn ou Templates).
@@ -1118,7 +1012,6 @@ function currentGroupData() {
   if (metricGroup === 'templates')    return templatesData;
   return {};
 }
-
 function getSubTabFiltered(nome) {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
@@ -1126,26 +1019,21 @@ function getSubTabFiltered(nome) {
   const rows = (nome && data[nome]) ? data[nome] : [];
   return rows.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
-
 function segData(row) { return row.mkt; }
-
 function sum(rows, field) {
   let s = 0, has = false;
   rows.forEach(r => { const v = segData(r)[field]; if (v !== null && v !== undefined) { s += v; has = true; } });
   return has ? s : null;
 }
-
 function sumF(rows, field) {
   let s = 0, has = false;
   rows.forEach(r => { const v = r[field]; if (v !== null && v !== undefined) { s += v; has = true; } });
   return has ? s : null;
 }
-
 const fN   = v => v === null ? null : Math.round(v).toLocaleString('pt-BR');
 const fBRL = v => v === null ? null : v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 const fP   = v => v === null ? null : v.toFixed(1) + '%';
 const fD   = d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
-
 // GERAL: % Conexão e % Conv. agora são calculados sobre Mensagens
 // Entregues (não mais sobre Tentativas). Taxa de Leitura é sempre
 // recalculada como Lidas/Entregues do período (nunca somada/mediada
@@ -1156,17 +1044,17 @@ function aggregates(rows) {
         links=sum(rows,'links'), vendas=sum(rows,'vendas'),
         semInteresse=sum(rows,'semInteresse'), transferencias=sum(rows,'transferencias'),
         enviadas=sum(rows,'enviadas'), entregues=sum(rows,'entregues'),
-        lidas=sum(rows,'lidas'), erros=sum(rows,'erros');
+        lidas=sum(rows,'lidas'), erros=sum(rows,'erros'),
+        followupsMarcados=sum(rows,'followupsMarcados');
   return {
     total, naoChamados, chamados, conectados, links, vendas, semInteresse, transferencias,
-    enviadas, entregues, lidas, erros,
+    enviadas, entregues, lidas, erros, followupsMarcados,
     taxaConexao: entregues ? (conectados||0)/entregues*100 : null,
     convTotal:   entregues ? (vendas||0)/entregues*100     : null,
     convConexao: conectados ? (vendas||0)/conectados*100   : null,
     readRate:    entregues ? (lidas||0)/entregues*100      : null,
   };
 }
-
 // Sub-abas (Segmentações/Qual Webn/Templates). "base" das taxas é Entregues
 // quando existir (Templates); nas demais sub-abas, Entregues sempre vem
 // zerado do backend, então caímos de volta para Tentativas — é a única
@@ -1185,7 +1073,6 @@ function aggregatesFunil(rows) {
     readRate:    entregues ? (lidas||0)/entregues*100 : null,
   };
 }
-
 function setDefaultDates() {
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -1194,7 +1081,6 @@ function setDefaultDates() {
   document.getElementById('dateFrom').value = `${yyyy}-${mm}-01`;
   document.getElementById('dateTo').value   = `${yyyy}-${mm}-${dd}`;
 }
-
 // ════════════════════════════════════════════
 // TOOLTIP HTML HELPER
 // ════════════════════════════════════════════
@@ -1203,7 +1089,6 @@ function tooltipHtmlFor(key) {
   if (!tip) return '';
   return `<div class="info-wrap card-info-wrap"><span class="info-btn">?</span><div class="info-tooltip card-tooltip"><strong>${tip.title}</strong>${tip.text}</div></div>`;
 }
-
 // ════════════════════════════════════════════
 // CARDS — MÉTRICAS (GERAL)
 // ════════════════════════════════════════════
@@ -1226,7 +1111,6 @@ function buildCard(cfg, agg, withTooltip) {
   `;
   return el;
 }
-
 function renderCards(agg) {
   const gP = document.getElementById('gridPrimary');
   const gS = document.getElementById('gridSecondary');
@@ -1234,7 +1118,6 @@ function renderCards(agg) {
   PRIMARY_CARDS.forEach(c => gP.appendChild(buildCard(c, agg, false)));
   SECONDARY_CARDS.forEach(c => gS.appendChild(buildCard(c, agg, true)));
 }
-
 // ════════════════════════════════════════════
 // CARDS — FUNIL (Segmentações / Qual Webn / Templates)
 // ════════════════════════════════════════════
@@ -1242,7 +1125,6 @@ function renderFunilCards(agg) {
   const grid = document.getElementById('funilCardsGrid');
   grid.innerHTML = '';
   FUNIL_CARD_CFG_PRIMARY.forEach(cfg => grid.appendChild(buildCard(cfg, agg, false)));
-
   const secGrid  = document.getElementById('funilCardsGridSecondary');
   const secLabel = document.getElementById('funilSecondaryLabel');
   secGrid.innerHTML = '';
@@ -1250,7 +1132,6 @@ function renderFunilCards(agg) {
   secLabel.style.display = secondaryCards.length ? '' : 'none';
   secondaryCards.forEach(cfg => secGrid.appendChild(buildCard(cfg, agg, true)));
 }
-
 // ════════════════════════════════════════════
 // FUNIL CHART
 // ════════════════════════════════════════════
@@ -1266,7 +1147,6 @@ function buildFunilToggles(rows) {
     c.appendChild(btn);
   });
 }
-
 function renderFunilChart(rows) {
   buildFunilToggles(rows);
   const cfg = getFunilMetricsConfig();
@@ -1295,7 +1175,6 @@ function renderFunilChart(rows) {
         yPct:{type:'linear',position:'right',ticks:{color:'#7E8E83',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}}}}
   });
 }
-
 // ════════════════════════════════════════════
 // FUNNEL VISUAL
 // ════════════════════════════════════════════
@@ -1319,14 +1198,12 @@ function renderFunnelInto(containerId, agg) {
     setTimeout(() => el.querySelector('.funnel-bar-fill').style.width = rel, 50+i*80);
   });
 }
-
 // ════════════════════════════════════════════
 // TABLE — MÉTRICAS (GERAL)
 // ════════════════════════════════════════════
 function renderTable(rows) {
   document.getElementById('tableHead').innerHTML = `<tr>${TABLE_COLS.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
   const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
-
   rows.forEach(row => {
     const d=segData(row);
     const tx=d.entregues?(d.conectados||0)/d.entregues*100:null;
@@ -1338,12 +1215,12 @@ function renderTable(rows) {
       taxaConexao:tx, convTotal:ct, convConexao:cc, readRate:rr,
       chamados:d.chamados, enviadas:d.enviadas, erros:d.erros, lidas:d.lidas,
       total:d.total, naoChamados:d.naoChamados, semInteresse:d.semInteresse, transferencias:d.transferencias,
+      followupsMarcados:d.followupsMarcados,
     };
     const tr=document.createElement('tr');
     tr.innerHTML=TABLE_COLS.map(col=>renderTableCell(col, rd[col.key])).join('');
     tbody.appendChild(tr);
   });
-
   const agg=aggregates(rows);
   const footData = {
     date:'TOTAL DO PERÍODO',
@@ -1351,10 +1228,10 @@ function renderTable(rows) {
     taxaConexao:agg.taxaConexao, convTotal:agg.convTotal, convConexao:agg.convConexao, readRate:agg.readRate,
     chamados:agg.chamados, enviadas:agg.enviadas, erros:agg.erros, lidas:agg.lidas,
     total:agg.total, naoChamados:agg.naoChamados, semInteresse:agg.semInteresse, transferencias:agg.transferencias,
+    followupsMarcados:agg.followupsMarcados,
   };
   document.getElementById('tableFoot').innerHTML = `<tr>${TABLE_COLS.map(col => renderTableFootCell(col, footData[col.key])).join('')}</tr>`;
 }
-
 // ════════════════════════════════════════════
 // TABLE — FUNIL (Segmentações / Qual Webn / Templates)
 // ════════════════════════════════════════════
@@ -1362,7 +1239,6 @@ function renderFunilTable(rows) {
   const cols = getFunilTableCols();
   document.getElementById('funilTableHead').innerHTML = `<tr>${cols.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
   const tbody = document.getElementById('funilTableBody'); tbody.innerHTML = '';
-
   rows.forEach(row => {
     const base = (row.entregues && row.entregues > 0) ? row.entregues : row.chamados;
     const tx = base ? (row.conectados||0)/base*100 : null;
@@ -1378,7 +1254,6 @@ function renderFunilTable(rows) {
     tr.innerHTML = cols.map(col => renderTableCell(col, rd[col.key])).join('');
     tbody.appendChild(tr);
   });
-
   const agg = aggregatesFunil(rows);
   const footData = {
     date:'TOTAL DO PERÍODO',
@@ -1388,7 +1263,6 @@ function renderFunilTable(rows) {
   };
   document.getElementById('funilTableFoot').innerHTML = `<tr>${cols.map(col => renderTableFootCell(col, footData[col.key])).join('')}</tr>`;
 }
-
 function renderTableCell(col, v) {
   if (col.key === 'date') return `<td>${fD(v)}</td>`;
   if (v === null || v === undefined) return `<td class="val-na">—</td>`;
@@ -1399,7 +1273,6 @@ function renderTableCell(col, v) {
   const cls = col.key==='vendas' ? 'val-green' : col.key==='erros' ? 'val-red' : '';
   return `<td class="${cls}">${Math.round(v).toLocaleString('pt-BR')}</td>`;
 }
-
 function renderTableFootCell(col, v) {
   if (col.key === 'date') return `<td>TOTAL DO PERÍODO</td>`;
   if (v === null || v === undefined) return `<td>—</td>`;
@@ -1410,7 +1283,6 @@ function renderTableFootCell(col, v) {
   const cls = col.key==='vendas' ? 'val-green' : col.key==='erros' ? 'val-red' : '';
   return `<td class="${cls}">${Math.round(v).toLocaleString('pt-BR')}</td>`;
 }
-
 // ════════════════════════════════════════════
 // CHART — MÉTRICAS
 // ════════════════════════════════════════════
@@ -1426,7 +1298,6 @@ function buildToggles() {
     c.appendChild(btn);
   });
 }
-
 function renderChart(rows) {
   buildToggles();
   const labels=rows.map(r=>fD(r.date));
@@ -1442,7 +1313,6 @@ function renderChart(rows) {
   if (lineChart) lineChart.destroy();
   lineChart=new Chart(document.getElementById('lineChart').getContext('2d'),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,callbacks:{label:ctx=>{const m=METRICS_CONFIG.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(1)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},yNum:{type:'linear',position:'left',ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},yPct:{type:'linear',position:'right',ticks:{color:'#7E8E83',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}}}}});
 }
-
 // ════════════════════════════════════════════
 // VENDAS
 // ════════════════════════════════════════════
@@ -1458,7 +1328,6 @@ function renderVendasCards(rows) {
     grid.appendChild(el);
   });
 }
-
 function renderVendasChart(rows) {
   const byDate={};
   rows.forEach(r=>{if(!byDate[r.date])byDate[r.date]={fat:0,count:0};byDate[r.date].fat+=r.valor;byDate[r.date].count+=1;});
@@ -1468,7 +1337,6 @@ function renderVendasChart(rows) {
   if(!dates.length)return;
   vendasChart=new Chart(document.getElementById('vendasChart').getContext('2d'),{type:'line',data:{labels,datasets:[{label:'Faturamento (R$)',data:dates.map(d=>byDate[d].fat),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.08)',borderWidth:2,pointRadius:dates.length>60?0:4,pointHoverRadius:6,tension:0.35,fill:true,yAxisID:'yFat',spanGaps:true},{label:'Nº de Vendas',data:dates.map(d=>byDate[d].count),borderColor:'#C4A96A',backgroundColor:'rgba(196,169,106,0.08)',borderWidth:2,pointRadius:dates.length>60?0:4,pointHoverRadius:6,tension:0.35,fill:false,yAxisID:'yCnt',spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,labels:{color:'#9BAA9F',font:{family:'JetBrains Mono',size:11},boxWidth:12,padding:16}},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,callbacks:{label:ctx=>{const v=ctx.parsed.y;if(ctx.dataset.label==='Faturamento (R$)')return'Faturamento: '+v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});return'Vendas: '+Math.round(v);}}}},scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},yFat:{type:'linear',position:'left',ticks:{color:'#22c55e',font:{family:'JetBrains Mono',size:10},callback:v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0})},grid:{color:'rgba(255,255,255,0.04)'}},yCnt:{type:'linear',position:'right',ticks:{color:'#C4A96A',font:{family:'JetBrains Mono',size:10},callback:v=>Math.round(v)},grid:{drawOnChartArea:false}}}}});
 }
-
 function renderVendasTable(rows) {
   const SL={mkt:'MKT',webhook:'WEBHOOK',assinatura:'ASSINATURA'};
   const SC={mkt:'mkt',webhook:'webhook',assinatura:'assinatura'};
@@ -1491,7 +1359,6 @@ function renderVendasTable(rows) {
   const totalFat=rows.reduce((s,r)=>s+r.valor,0);
   document.getElementById('vendasTableFoot').innerHTML=`<tr><td>TOTAL</td><td colspan="4">${rows.length} venda${rows.length!==1?'s':''}</td><td style="text-align:right;color:var(--green);">${fBRL(totalFat)}</td></tr>`;
 }
-
 // ════════════════════════════════════════════
 // TRANSFERÊNCIAS
 // ════════════════════════════════════════════
@@ -1499,11 +1366,9 @@ function renderTransferencias(rows, search = '') {
   const grid = document.getElementById('transfCardsGrid'); grid.innerHTML = '';
   const total = rows.length;
   const totalSuporte = rows.filter(r => r.mandouSuporte).length;
-
   const byDay = {};
   rows.forEach(r => { byDay[r.date] = (byDay[r.date] || 0) + 1; });
   const diaMax = Object.entries(byDay).sort((a,b) => b[1]-a[1])[0];
-
   // Cards: Total, Mandou Suporte, Dia com mais
   [
     { icon:'🔄', label:'Total de Transferências', value: total.toLocaleString('pt-BR'),                                           cls:'highlight' },
@@ -1515,21 +1380,17 @@ function renderTransferencias(rows, search = '') {
     el.innerHTML = `<span class="card-icon">${c.icon}</span><div class="card-label">${c.label}</div><div class="card-value" style="font-size:${c.value.length > 6 ? '22px':'32px'};">${c.value}</div>${c.sub ? `<div class="card-sub">${c.sub}</div>` : ''}`;
     grid.appendChild(el);
   });
-
   // Tabela com busca
   const q = search.toLowerCase();
   const filtered = q ? rows.filter(r => r.nome.toLowerCase().includes(q) || r.telefone.includes(q)) : rows;
-
   // Cabeçalho com coluna Suporte
   document.getElementById('transfTableHead').innerHTML = `<tr><th>Data</th><th>Nome</th><th>Número</th><th>Suporte</th><th>Motivo</th></tr>`;
   const tbody = document.getElementById('transfTableBody'); tbody.innerHTML = '';
-
   if (!filtered.length) {
     tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${q ? 'Nenhum resultado para "'+search+'".' : 'Nenhuma transferência no período.'}</td></tr>`;
     document.getElementById('transfTableFoot').innerHTML = '';
     return;
   }
-
   filtered.forEach(r => {
     const tr = document.createElement('tr');
     const motivoHtml = r.motivo
@@ -1541,27 +1402,22 @@ function renderTransferencias(rows, search = '') {
     tr.innerHTML = `<td>${fD(r.date)}</td><td style="white-space:normal;max-width:180px;">${r.nome || '—'}</td><td class="val-blue">${r.telefone || '—'}</td>${supBadge}${motivoHtml}`;
     tbody.appendChild(tr);
   });
-
   const totalFiltrado = filtered.filter(r => r.mandouSuporte).length;
   document.getElementById('transfTableFoot').innerHTML = `<tr><td>TOTAL</td><td colspan="2">${filtered.length} transferência${filtered.length!==1?'s':''}</td><td><span class="bool-badge sim" style="font-size:9px;">✓ ${totalFiltrado}</span></td><td></td></tr>`;
 }
-
 // ════════════════════════════════════════════
 // CUSTOS
 // ════════════════════════════════════════════
 function renderCustos(rows) {
   const grid = document.getElementById('custosCardsGrid'); grid.innerHTML = '';
   const totalCusto = rows.reduce((s,r) => s+r.valor, 0);
-
   const byCat = {};
   rows.forEach(r => { byCat[r.categoria] = (byCat[r.categoria] || 0) + r.valor; });
   const cats = Object.entries(byCat).sort((a,b) => b[1]-a[1]);
-
   const elTotal = document.createElement('div');
   elTotal.className = 'card highlight';
   elTotal.innerHTML = `<span class="card-icon">💸</span><div class="card-label">Custo Total</div><div class="card-value is-money-red" style="font-size:24px;">${fBRL(totalCusto)}</div>`;
   grid.appendChild(elTotal);
-
   cats.forEach(([cat, val]) => {
     const color = getCatColor(cat);
     const el = document.createElement('div');
@@ -1574,7 +1430,6 @@ function renderCustos(rows) {
       <div class="card-sub">${((val/totalCusto)*100).toFixed(1)}% do total</div>`;
     grid.appendChild(el);
   });
-
   const byDateCat = {}; // date -> { categoria: valor }
   rows.forEach(r => {
     if (!byDateCat[r.date]) byDateCat[r.date] = {};
@@ -1624,16 +1479,13 @@ function renderCustos(rows) {
       }
     });
   }
-
   document.getElementById('custosTableHead').innerHTML = `<tr><th>Data</th><th>Categoria</th><th>Descrição</th><th style="text-align:right;">Valor</th></tr>`;
   const tbody = document.getElementById('custosTableBody'); tbody.innerHTML = '';
-
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Nenhum custo registrado no período.</td></tr>`;
     document.getElementById('custosTableFoot').innerHTML = '';
     return;
   }
-
   rows.forEach(r => {
     const color = getCatColor(r.categoria);
     const tr = document.createElement('tr');
@@ -1644,7 +1496,6 @@ function renderCustos(rows) {
       <td style="text-align:right;" class="val-red">${fBRL(r.valor)}</td>`;
     tbody.appendChild(tr);
   });
-
   document.getElementById('custosTableFoot').innerHTML = `
     <tr>
       <td>TOTAL</td>
@@ -1652,7 +1503,6 @@ function renderCustos(rows) {
       <td style="text-align:right;color:var(--accent);">${fBRL(totalCusto)}</td>
     </tr>`;
 }
-
 // ════════════════════════════════════════════
 // FOLLOW-UPS
 // ════════════════════════════════════════════
@@ -1661,16 +1511,13 @@ const FOLLOWUP_TIPOS = [
   { key:'10H',  label:'10H'  },
   { key:'23H',  label:'23H'  },
 ];
-
 function renderFollowups(rows, search = '') {
   const grid = document.getElementById('followupsCardsGrid'); grid.innerHTML = '';
-
   FOLLOWUP_TIPOS.forEach(t => {
     const doTipo = rows.filter(r => r.tipo === t.key);
     const enviados = doTipo.length;
     const respondidos = doTipo.filter(r => r.respondido).length;
     const taxa = enviados > 0 ? (respondidos/enviados*100) : null;
-
     const el = document.createElement('div');
     el.className = 'card highlight';
     el.innerHTML = `
@@ -1681,7 +1528,6 @@ function renderFollowups(rows, search = '') {
     `;
     grid.appendChild(el);
   });
-
   // Card com o total geral (todos os tipos somados)
   const totalEnv = rows.length;
   const totalResp = rows.filter(r => r.respondido).length;
@@ -1694,20 +1540,16 @@ function renderFollowups(rows, search = '') {
     <div class="card-sub">${totalResp.toLocaleString('pt-BR')} respondidos${totalEnv>0?' · '+(totalResp/totalEnv*100).toFixed(1)+'%':''}</div>
   `;
   grid.appendChild(elTotal);
-
   // Tabela com busca
   const q = search.toLowerCase();
   const filtered = q ? rows.filter(r => r.nome.toLowerCase().includes(q) || r.telefone.includes(q)) : rows;
-
   document.getElementById('followupsTableHead').innerHTML = `<tr><th>Data</th><th>Nome</th><th>Telefone</th><th>Tipo</th><th>Respondido</th><th>Horário Resposta</th></tr>`;
   const tbody = document.getElementById('followupsTableBody'); tbody.innerHTML = '';
-
   if (!filtered.length) {
     tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${q ? 'Nenhum resultado para "'+search+'".' : 'Nenhum follow-up no período.'}</td></tr>`;
     document.getElementById('followupsTableFoot').innerHTML = '';
     return;
   }
-
   filtered.forEach(r => {
     const tr = document.createElement('tr');
     const respBadge = r.respondido
@@ -1717,11 +1559,9 @@ function renderFollowups(rows, search = '') {
     tr.innerHTML = `<td>${fD(r.date)}</td><td style="white-space:normal;max-width:180px;">${r.nome||'—'}</td><td class="val-blue">${r.telefone||'—'}</td><td>${r.tipo||'—'}</td>${respBadge}<td>${horario}</td>`;
     tbody.appendChild(tr);
   });
-
   const totalFiltradoResp = filtered.filter(r => r.respondido).length;
   document.getElementById('followupsTableFoot').innerHTML = `<tr><td>TOTAL</td><td colspan="3">${filtered.length} follow-up${filtered.length!==1?'s':''}</td><td><span class="bool-badge sim" style="font-size:9px;">✓ ${totalFiltradoResp}</span></td><td></td></tr>`;
 }
-
 // ════════════════════════════════════════════
 // SUB-ABAS DE SEGMENTAÇÕES / QUAL WEBN / TEMPLATES
 // ════════════════════════════════════════════
@@ -1733,28 +1573,22 @@ function buildSubTabs() {
   const bar   = document.getElementById('funilBar');
   const label = document.getElementById('funilBarLabel');
   const container = document.getElementById('funilTabsContainer');
-
   if (metricGroup === 'geral') {
     bar.style.display = 'none';
     return;
   }
-
   bar.style.display = '';
   label.textContent = metricGroup === 'segmentacoes' ? 'SEGMENTAÇÕES' : metricGroup === 'qualwebn' ? 'QUAL WEBN' : 'TEMPLATES';
-
   const data   = currentGroupData();
   const nomes  = Object.keys(data).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
-
   if (!activeSubTab || !nomes.includes(activeSubTab)) {
     activeSubTab = nomes.length ? nomes[0] : null;
   }
-
   container.innerHTML = '';
   if (!nomes.length) {
     container.innerHTML = `<span style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;padding:10px 0;">Nenhum dado encontrado ainda</span>`;
     return;
   }
-
   nomes.forEach(nome => {
     const btn = document.createElement('button');
     btn.className = 'funil-tab' + (nome === activeSubTab ? ' active' : '');
@@ -1763,7 +1597,6 @@ function buildSubTabs() {
     container.appendChild(btn);
   });
 }
-
 // ════════════════════════════════════════════
 // REFRESH
 // ════════════════════════════════════════════
@@ -1772,15 +1605,12 @@ function refreshMetricas() {
   document.getElementById('tableView').classList.remove('visible');
   document.getElementById('funilView').classList.remove('visible');
   document.getElementById('funilTableView').classList.remove('visible');
-
   buildSubTabs();
-
   if (metricGroup !== 'geral') {
     const rows = getSubTabFiltered(activeSubTab);
     const agg  = aggregatesFunil(rows);
     document.getElementById('funilBadge').textContent      = activeSubTab ? activeSubTab.toUpperCase() : '—';
     document.getElementById('funilChartTitle').textContent = 'EVOLUÇÃO DIÁRIA — ' + (activeSubTab ? activeSubTab.toUpperCase() : '—');
-
     if (viewMode === 'table') {
       document.getElementById('funilTableView').classList.add('visible');
       renderFunilTable(rows);
@@ -1799,28 +1629,23 @@ function refreshMetricas() {
     }
   }
 }
-
 function refreshVendas() {
   const rows = getVendasFiltered();
   renderVendasCards(rows); renderVendasChart(rows); renderVendasTable(rows);
 }
-
 function refreshTransferencias() {
   const rows = getTransfFiltered();
   const search = document.getElementById('transfSearch').value;
   renderTransferencias(rows, search);
 }
-
 function refreshCustos() {
   renderCustos(getCustosFiltered());
 }
-
 function refreshFollowups() {
   const rows = getFollowupsFiltered();
   const search = document.getElementById('followupsSearch').value;
   renderFollowups(rows, search);
 }
-
 function refreshAll() {
   if (activePage === 'metricas')            refreshMetricas();
   else if (activePage === 'vendas')         refreshVendas();
@@ -1828,14 +1653,12 @@ function refreshAll() {
   else if (activePage === 'custos')         refreshCustos();
   else if (activePage === 'followups')      refreshFollowups();
 }
-
 function switchView(mode) {
   viewMode = mode;
   document.getElementById('btnViewCards').classList.toggle('active', mode==='cards');
   document.getElementById('btnViewTable').classList.toggle('active', mode==='table');
   refreshMetricas();
 }
-
 function switchPage(page) {
   activePage = page;
   const pages = ['metricas','vendas','transferencias','custos','followups'];
@@ -1848,7 +1671,6 @@ function switchPage(page) {
   document.querySelectorAll('.main-tab').forEach(t => t.classList.toggle('active', t.dataset.page===page));
   refreshAll();
 }
-
 // ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
@@ -1856,9 +1678,7 @@ async function init() {
   await Promise.all([fetchData(), fetchVendas(), fetchSegmentacoes(), fetchQualWebn(), fetchTemplates(), fetchTransferencias(), fetchCustos(), fetchFollowups()]);
   document.getElementById('loadingOverlay').style.display = 'none';
   if (!allData.length) { showError(); return; }
-
   setDefaultDates();
-
   document.querySelectorAll('.main-tab').forEach(btn => {
     const key = btn.dataset.page;
     if (TABS_CONFIG[key] === false) {
@@ -1867,7 +1687,6 @@ async function init() {
     }
     btn.addEventListener('click', () => switchPage(key));
   });
-
   document.querySelectorAll('#metricGroupTabs .seg-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#metricGroupTabs .seg-tab').forEach(b => b.classList.remove('active'));
@@ -1877,31 +1696,24 @@ async function init() {
       refreshMetricas();
     });
   });
-
   document.getElementById('btnViewCards').addEventListener('click', () => switchView('cards'));
   document.getElementById('btnViewTable').addEventListener('click', () => switchView('table'));
-
   document.getElementById('btnToggleSecondary').addEventListener('click', () => {
     showSecondary = !showSecondary;
     document.getElementById('secondaryBlock').classList.toggle('visible', showSecondary);
     document.getElementById('btnToggleSecondary').classList.toggle('active', showSecondary);
     document.getElementById('lblSecondary').textContent = showSecondary ? 'Ocultar dados secundários' : 'Ver dados secundários';
   });
-
   document.getElementById('btnApply').addEventListener('click', refreshAll);
   document.getElementById('btnSync').addEventListener('click', sincronizarVendas);
-
   document.getElementById('transfSearch').addEventListener('input', () => {
     if (activePage === 'transferencias') refreshTransferencias();
   });
-
   document.getElementById('followupsSearch').addEventListener('input', () => {
     if (activePage === 'followups') refreshFollowups();
   });
-
   refreshMetricas();
 }
-
 init();
 </script>
 </body>
