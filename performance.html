@@ -863,11 +863,6 @@ function showToast(msg, type = 'success', duration = 3500) {
 // PCT COLOR
 // ════════════════════════════════════════════
 function getPctColor(key, value) {
-  // OBS: % Conexão e % Conv./Entregues agora usam Mensagens Entregues como
-  // base (em vez de Tentativas). Como Entregues < Tentativas, esses
-  // percentuais tendem a ficar um pouco mais altos que antes — ajuste os
-  // limiares abaixo se quiser recalibrar as cores depois de ver os dados
-  // reais de alguns dias.
   const rules = { taxaConexao:{low:20,high:30}, convTotal:{low:2,high:6}, convConexao:{low:6,high:10} };
   const rule = rules[key];
   if (!rule) return '';
@@ -976,7 +971,7 @@ function setStatus(s) {
 function showError() {
   document.getElementById('loadingOverlay').innerHTML = `
     <div class="error-box"><h3>ERRO AO CARREGAR</h3>
-    <p>Não foi possível buscar os dados.<br>Verifique se o App Script está configurado.</p></div>`;
+    <p>Não foi possível buscar os dados.<br>Verifique se o App Script está configurado e publicado como "Qualquer pessoa".</p></div>`;
 }
 function getFiltered() {
   const from = document.getElementById('dateFrom').value;
@@ -1003,9 +998,6 @@ function getFollowupsFiltered() {
   const to   = document.getElementById('dateTo').value;
   return followupsData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
-// Retorna o objeto { "<valor>": [{date,chamados,conectados,links,vendas,
-// enviadas,entregues,lidas,erros}] } referente ao grupo atualmente
-// selecionado (Segmentações, Qual Webn ou Templates).
 function currentGroupData() {
   if (metricGroup === 'segmentacoes') return segmentacoesData;
   if (metricGroup === 'qualwebn')     return qualwebnData;
@@ -1034,10 +1026,6 @@ const fN   = v => v === null ? null : Math.round(v).toLocaleString('pt-BR');
 const fBRL = v => v === null ? null : v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 const fP   = v => v === null ? null : v.toFixed(1) + '%';
 const fD   = d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
-// GERAL: % Conexão e % Conv. agora são calculados sobre Mensagens
-// Entregues (não mais sobre Tentativas). Taxa de Leitura é sempre
-// recalculada como Lidas/Entregues do período (nunca somada/mediada
-// diretamente, pois é uma taxa).
 function aggregates(rows) {
   const total=sum(rows,'total'), naoChamados=sum(rows,'naoChamados'),
         chamados=sum(rows,'chamados'), conectados=sum(rows,'conectados'),
@@ -1055,10 +1043,6 @@ function aggregates(rows) {
     readRate:    entregues ? (lidas||0)/entregues*100      : null,
   };
 }
-// Sub-abas (Segmentações/Qual Webn/Templates). "base" das taxas é Entregues
-// quando existir (Templates); nas demais sub-abas, Entregues sempre vem
-// zerado do backend, então caímos de volta para Tentativas — é a única
-// base disponível pra Segmentações/Qual Webn.
 function aggregatesFunil(rows) {
   const chamados=sumF(rows,'chamados'), conectados=sumF(rows,'conectados'),
         links=sumF(rows,'links'), vendas=sumF(rows,'vendas'),
@@ -1340,7 +1324,6 @@ function renderVendasChart(rows) {
 function renderVendasTable(rows) {
   const SL={mkt:'MKT',webhook:'WEBHOOK',assinatura:'ASSINATURA'};
   const SC={mkt:'mkt',webhook:'webhook',assinatura:'assinatura'};
-  // Cabeçalho com coluna Telefone
   document.getElementById('vendasTableHead').innerHTML=`<tr><th>Data</th><th>Nome</th><th>Telefone</th><th>Produto</th><th>Segmento</th><th style="text-align:right;">Valor</th></tr>`;
   const tbody=document.getElementById('vendasTableBody'); tbody.innerHTML='';
   if(!rows.length){
@@ -1369,7 +1352,6 @@ function renderTransferencias(rows, search = '') {
   const byDay = {};
   rows.forEach(r => { byDay[r.date] = (byDay[r.date] || 0) + 1; });
   const diaMax = Object.entries(byDay).sort((a,b) => b[1]-a[1])[0];
-  // Cards: Total, Mandou Suporte, Dia com mais
   [
     { icon:'🔄', label:'Total de Transferências', value: total.toLocaleString('pt-BR'),                                           cls:'highlight' },
     { icon:'🎧', label:'Mandou para Suporte',      value: totalSuporte.toLocaleString('pt-BR'), sub: total > 0 ? ((totalSuporte/total*100).toFixed(1)+'% do total') : '', cls:'purple-highlight' },
@@ -1380,10 +1362,8 @@ function renderTransferencias(rows, search = '') {
     el.innerHTML = `<span class="card-icon">${c.icon}</span><div class="card-label">${c.label}</div><div class="card-value" style="font-size:${c.value.length > 6 ? '22px':'32px'};">${c.value}</div>${c.sub ? `<div class="card-sub">${c.sub}</div>` : ''}`;
     grid.appendChild(el);
   });
-  // Tabela com busca
   const q = search.toLowerCase();
   const filtered = q ? rows.filter(r => r.nome.toLowerCase().includes(q) || r.telefone.includes(q)) : rows;
-  // Cabeçalho com coluna Suporte
   document.getElementById('transfTableHead').innerHTML = `<tr><th>Data</th><th>Nome</th><th>Número</th><th>Suporte</th><th>Motivo</th></tr>`;
   const tbody = document.getElementById('transfTableBody'); tbody.innerHTML = '';
   if (!filtered.length) {
@@ -1430,7 +1410,7 @@ function renderCustos(rows) {
       <div class="card-sub">${((val/totalCusto)*100).toFixed(1)}% do total</div>`;
     grid.appendChild(el);
   });
-  const byDateCat = {}; // date -> { categoria: valor }
+  const byDateCat = {};
   rows.forEach(r => {
     if (!byDateCat[r.date]) byDateCat[r.date] = {};
     byDateCat[r.date][r.categoria] = (byDateCat[r.date][r.categoria] || 0) + r.valor;
@@ -1461,7 +1441,6 @@ function renderCustos(rows) {
             backgroundColor: '#17231C', borderColor: '#33453A', borderWidth: 1,
             titleColor: '#EDE8D8', bodyColor: '#B7C2B9', footerColor: '#C4A96A',
             footerFont: { family:'JetBrains Mono', weight:'700' }, padding: 12,
-            // Some sem mostrar categorias com R$ 0 no dia, e soma o total no rodapé.
             filter: item => item.parsed.y > 0,
             callbacks: {
               label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('pt-BR', {style:'currency',currency:'BRL'}),
@@ -1528,7 +1507,6 @@ function renderFollowups(rows, search = '') {
     `;
     grid.appendChild(el);
   });
-  // Card com o total geral (todos os tipos somados)
   const totalEnv = rows.length;
   const totalResp = rows.filter(r => r.respondido).length;
   const elTotal = document.createElement('div');
@@ -1540,7 +1518,6 @@ function renderFollowups(rows, search = '') {
     <div class="card-sub">${totalResp.toLocaleString('pt-BR')} respondidos${totalEnv>0?' · '+(totalResp/totalEnv*100).toFixed(1)+'%':''}</div>
   `;
   grid.appendChild(elTotal);
-  // Tabela com busca
   const q = search.toLowerCase();
   const filtered = q ? rows.filter(r => r.nome.toLowerCase().includes(q) || r.telefone.includes(q)) : rows;
   document.getElementById('followupsTableHead').innerHTML = `<tr><th>Data</th><th>Nome</th><th>Telefone</th><th>Tipo</th><th>Respondido</th><th>Horário Resposta</th></tr>`;
@@ -1565,10 +1542,6 @@ function renderFollowups(rows, search = '') {
 // ════════════════════════════════════════════
 // SUB-ABAS DE SEGMENTAÇÕES / QUAL WEBN / TEMPLATES
 // ════════════════════════════════════════════
-// Gera as sub-abas dinamicamente a partir das chaves retornadas pelo
-// backend (segmentacoesData, qualwebnData ou templatesData, dependendo
-// do metricGroup ativo). Some sozinha (bar fica escondida) quando o
-// grupo é "geral".
 function buildSubTabs() {
   const bar   = document.getElementById('funilBar');
   const label = document.getElementById('funilBarLabel');
@@ -1676,13 +1649,18 @@ function switchPage(page) {
 // ════════════════════════════════════════════
 async function init() {
   await Promise.all([fetchData(), fetchVendas(), fetchSegmentacoes(), fetchQualWebn(), fetchTemplates(), fetchTransferencias(), fetchCustos(), fetchFollowups()]);
-  document.getElementById('loadingOverlay').style.display = 'none';
+  // FIX: checa se os dados vieram ANTES de esconder o overlay de loading.
+  // Antes, o overlay era escondido primeiro (display:none) e só depois
+  // showError() escrevia a mensagem de erro dentro dele — como já estava
+  // escondido, a mensagem nunca aparecia e a tela ficava "travada" (sem
+  // spinner, sem erro, sem dados).
   if (!allData.length) { showError(); return; }
+  document.getElementById('loadingOverlay').style.display = 'none';
   setDefaultDates();
   document.querySelectorAll('.main-tab').forEach(btn => {
     const key = btn.dataset.page;
     if (TABS_CONFIG[key] === false) {
-      btn.style.display = 'none'; // aba desativada em TABS_CONFIG: fica escondida
+      btn.style.display = 'none';
       return;
     }
     btn.addEventListener('click', () => switchPage(key));
