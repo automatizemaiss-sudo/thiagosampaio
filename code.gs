@@ -50,9 +50,12 @@
  *        "Repetição"), agrupado por mês da "dia_de_venda".
  *  FL  = FB × taxa_liquido.
  *  COM = FL × percentual da faixa do FL do MÊS — MAS se já existir uma
- *        linha na aba Custos com Categoria = "Comissões" lançada nesse
- *        mês (o pagamento real, que sai por volta do dia 15 do mês
- *        seguinte), usa-se o valor REAL lançado no lugar do calculado.
+ *        linha na aba Custos com Categoria = "Comissões" referente a esse
+ *        mês, usa-se o valor REAL lançado no lugar do calculado. O
+ *        pagamento sai por volta do dia 15 do mês SEGUINTE ao mês de
+ *        referência (ex.: um lançamento datado de 17/08 é o pagamento
+ *        da comissão de JULHO) — por isso getRoi() atribui essa linha
+ *        ao mês anterior ao da data de lançamento (ver mesAnterior()).
  *        Enquanto não é lançada, o mês fica com o valor estimado por
  *        fórmula (campo "comissao_lancada: false" no JSON).
  *  CR  = soma de "Valor" da aba Custos por mês, EXCLUINDO as linhas de
@@ -890,6 +893,14 @@ function novoBucketCusto() {
   return { templates: 0, tokens: 0, implementacao: 0, salario: 0, outros: 0 };
 }
 
+// 'yyyy-MM' do mês anterior ao informado (com rollover de ano: jan → dez do ano anterior).
+function mesAnterior(mes) {
+  const [y, m] = mes.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1, 1));
+  d.setUTCMonth(d.getUTCMonth() - 1);
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+}
+
 function getRoi(ctx) {
   const { taxaLiquido, faixas } = getConfig(ctx);
 
@@ -920,7 +931,11 @@ function getRoi(ctx) {
     const categoriaKey = String(r['Categoria'] || '').trim().toLowerCase();
 
     if (categoriaKey === CUSTO_CATEGORIA_COMISSAO) {
-      comissaoRealPorMes[mes] = (comissaoRealPorMes[mes] || 0) + valor;
+      // O pagamento sai por volta do dia 15 do mês SEGUINTE ao mês de
+      // referência (ex.: lançamento em 17/08 é a comissão de JULHO).
+      // Por isso a atribuímos ao mês anterior ao da data de lançamento.
+      const mesReferencia = mesAnterior(mes);
+      comissaoRealPorMes[mesReferencia] = (comissaoRealPorMes[mesReferencia] || 0) + valor;
       return; // não entra em CR — vira "comissao" direto
     }
 

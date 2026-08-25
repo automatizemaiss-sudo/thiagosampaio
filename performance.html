@@ -1044,23 +1044,76 @@ function getRoiFiltered() {
   const toMes   = to   ? to.slice(0, 7)   : '';
   return roiData.filter(m => (!fromMes || m.mes >= fromMes) && (!toMes || m.mes <= toMes));
 }
-// Soma os meses filtrados num único "período selecionado", respeitando
-// a regra de nunca recalcular a faixa sobre o total acumulado: FL, CR e
-// comissão são somados já prontos de cada mês.
-function aggregateRoi(meses) {
-  const fb  = meses.reduce((s, m) => s + m.faturamento_bruto, 0);
-  const fl  = meses.reduce((s, m) => s + m.faturamento_liquido, 0);
-  const com = meses.reduce((s, m) => s + m.comissao, 0);
-  const cr  = meses.reduce((s, m) => s + m.custos_registrados, 0);
-  const ct  = cr + com;
+// Mesmo mapeamento categoria → bucket usado no backend (CUSTO_CATEGORIA_BUCKET
+// em code.gs). Precisa ficar duplicado aqui porque custosData vem cru
+// (categoria como string), não pré-bucketizado — só o payload roi.meses
+// (agregado por mês inteiro) já vem com o bucket pronto.
+const ROI_CATEGORIA_BUCKET_FRONT = {
+  'templates da meta':   'templates',
+  'meta':                'templates',
+  'tokens - openai':     'tokens',
+  'tokens - openrouter': 'tokens',
+  'openrouter':          'tokens',
+  'implementação':       'implementacao',
+  'implementacao':       'implementacao',
+  'manutenção':          'salario',
+  'manutencao':          'salario',
+};
+// "Período selecionado" calculado pelo intervalo de DIAS exato (igual às
+// outras abas), não pelo mês fechado — diferente da tabela/gráficos
+// mensais, que continuam mostrando o mês inteiro (isso é intencional).
+//
+// FB/FL/CR vêm de somar vendasData/custosData filtrados pelo dia exato.
+// A COMISSÃO não pode ser recalculada do zero aqui: a FAIXA (%) só pode
+// ser definida pelo faturamento do MÊS INTEIRO (regra de negócio fixa —
+// não dá pra saber a faixa certa olhando só uma fatia do mês). Então,
+// para cada mês tocado pelo período:
+//   fração = faturamento do mês DENTRO do período / faturamento do mês INTEIRO
+//   comissão do período += comissão do mês inteiro (real lançada, se já
+//                          existir, senão a calculada pela faixa) × fração
+// Quando o período selecionado é o mês inteiro, fração = 1 e o valor bate
+// exatamente com o que já vem pronto em roiData — é o mesmo cálculo, só
+// que também funciona para pedaços de mês.
+function aggregatePeriodoRoi() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const taxaLiquido = (roiConfig && roiConfig.taxa_liquido) || 0.93;
+
+  const vendasPeriodo = vendasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+  const fb = vendasPeriodo.reduce((s, v) => s + v.valor, 0);
+  const fl = fb * taxaLiquido;
+
+  const custosPeriodo = custosData.filter(d =>
+    (!from || d.date >= from) && (!to || d.date <= to) &&
+    String(d.categoria || '').trim().toLowerCase() !== 'comissões'
+  );
+  const cr = custosPeriodo.reduce((s, c) => s + c.valor, 0);
   const porCategoria = { templates:0, tokens:0, implementacao:0, salario:0, outros:0 };
-  meses.forEach(m => {
-    Object.keys(porCategoria).forEach(k => porCategoria[k] += (m.custos_por_categoria[k] || 0));
+  custosPeriodo.forEach(c => {
+    const bucket = ROI_CATEGORIA_BUCKET_FRONT[String(c.categoria || '').trim().toLowerCase()] || 'outros';
+    porCategoria[bucket] += c.valor;
   });
+
+  const mesesTocados = new Set();
+  vendasPeriodo.forEach(v => mesesTocados.add(v.date.slice(0, 7)));
+  custosPeriodo.forEach(c => mesesTocados.add(c.date.slice(0, 7)));
+
+  let comissao = 0;
+  mesesTocados.forEach(mes => {
+    const infoMes = roiData.find(m => m.mes === mes);
+    if (!infoMes) return;
+    const fbMesNoPeriodo = vendasPeriodo
+      .filter(v => v.date.slice(0, 7) === mes)
+      .reduce((s, v) => s + v.valor, 0);
+    const fracao = infoMes.faturamento_bruto > 0 ? Math.min(1, fbMesNoPeriodo / infoMes.faturamento_bruto) : 0;
+    comissao += infoMes.comissao * fracao;
+  });
+
+  const ct = cr + comissao;
   return {
     faturamento_bruto: fb,
     faturamento_liquido: fl,
-    comissao: com,
+    comissao,
     custos_registrados: cr,
     custos_por_categoria: porCategoria,
     custo_total: ct,
@@ -1565,9 +1618,8 @@ const ROI_CUSTO_CATS = [
   { key:'salario',        label:'Salário/Manutenção' },
   { key:'outros',         label:'Outros' },
 ];
-function renderRoi(meses) {
+function renderRoi(meses, agg) {
   const grid = document.getElementById('roiCardsGrid'); grid.innerHTML = '';
-  const agg = aggregateRoi(meses);
   const hasCT = agg.custo_total > 0;
   const roiNeg = agg.roi_percentual !== null && agg.roi_percentual < 0;
 
@@ -1850,7 +1902,7 @@ function refreshFollowups() {
   renderFollowups(rows, search);
 }
 function refreshRoi() {
-  renderRoi(getRoiFiltered());
+  renderRoi(getRoiFiltered(), aggregatePeriodoRoi());
 }
 function refreshAll() {
   if (activePage === 'metricas')            refreshMetricas();
