@@ -65,7 +65,7 @@
  *  Categorias de custo mapeadas para os buckets do JSON
  *  (custos_por_categoria), conforme a lista de categorias real da
  *  planilha:
- *    "Templates da Meta"                        → templates
+ *    "Templates da Meta", "Meta"                 → templates
  *    "Tokens - OpenAI", "Tokens - OpenRouter",
  *    "OpenRouter"                                → tokens
  *    "Implementação"                             → implementacao
@@ -73,7 +73,7 @@
  *                                                   custo de salário é
  *                                                   lançado hoje)
  *    "Comissões"                                 → excluída de CR (via COM)
- *    qualquer outra (ex: "Meta")                 → outros
+ *    qualquer outra categoria não listada        → outros
  *
  *  O período (data de/até) é filtrado NO DASHBOARD, não aqui — o
  *  getRoi() sempre devolve o histórico completo, mês a mês. É assim
@@ -814,6 +814,7 @@ function getCustos(ctx) {
 // custos_registrados/custo_total para não contar duas vezes.
 const CUSTO_CATEGORIA_BUCKET = {
   'templates da meta':       'templates',
+  'meta':                    'templates',
   'tokens - openai':         'tokens',
   'tokens - openrouter':     'tokens',
   'openrouter':              'tokens',
