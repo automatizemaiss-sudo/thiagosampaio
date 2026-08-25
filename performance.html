@@ -1059,11 +1059,34 @@ const ROI_CATEGORIA_BUCKET_FRONT = {
   'manutenção':          'salario',
   'manutencao':          'salario',
 };
+// Dias corridos no mês 'YYYY-MM' (usa o truque do dia 0 do mês seguinte).
+function diasNoMes(mes) {
+  const [y, m] = mes.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+// Quantos dias do mês 'YYYY-MM' caem dentro do período [from, to] (strings
+// 'YYYY-MM-DD', vazio = sem limite). Usado pra ratear custo fixo mensal.
+function contarDiasNoPeriodo(mes, from, to) {
+  const diasMes  = diasNoMes(mes);
+  const inicioMes = mes + '-01';
+  const fimMes    = mes + '-' + String(diasMes).padStart(2, '0');
+  const ini = from && from > inicioMes ? from : inicioMes;
+  const fim = to   && to   < fimMes    ? to   : fimMes;
+  if (ini > fim) return 0;
+  return Math.round((new Date(fim + 'T00:00:00') - new Date(ini + 'T00:00:00')) / 86400000) + 1;
+}
 // "Período selecionado" calculado pelo intervalo de DIAS exato (igual às
 // outras abas), não pelo mês fechado — diferente da tabela/gráficos
 // mensais, que continuam mostrando o mês inteiro (isso é intencional).
 //
-// FB/FL/CR vêm de somar vendasData/custosData filtrados pelo dia exato.
+// FB/FL/CR vêm de somar vendasData/custosData filtrados pelo dia exato —
+// EXCETO "Manutenção", que é custo fixo mensal (ex.: sempre R$ 2.000,
+// lançado num único dia do mês). Contar esse lançamento só no dia exato
+// em que foi feito distorceria qualquer período mais curto que o mês
+// inteiro (zerado se o dia do lançamento cair fora do período, ou cheio
+// se cair dentro). Em vez disso, o valor do mês é dividido pelos dias
+// corridos do mês e somado só pelos dias que o período selecionado cobre.
+//
 // A COMISSÃO não pode ser recalculada do zero aqui: a FAIXA (%) só pode
 // ser definida pelo faturamento do MÊS INTEIRO (regra de negócio fixa —
 // não dá pra saber a faixa certa olhando só uma fatia do mês). Então,
@@ -1083,16 +1106,35 @@ function aggregatePeriodoRoi() {
   const fb = vendasPeriodo.reduce((s, v) => s + v.valor, 0);
   const fl = fb * taxaLiquido;
 
-  const custosPeriodo = custosData.filter(d =>
-    (!from || d.date >= from) && (!to || d.date <= to) &&
-    String(d.categoria || '').trim().toLowerCase() !== 'comissões'
-  );
-  const cr = custosPeriodo.reduce((s, c) => s + c.valor, 0);
+  const isManutencao = cat => cat === 'manutenção' || cat === 'manutencao';
+  const custosPeriodo = custosData.filter(d => {
+    const cat = String(d.categoria || '').trim().toLowerCase();
+    return (!from || d.date >= from) && (!to || d.date <= to) &&
+           cat !== 'comissões' && !isManutencao(cat);
+  });
+  let cr = custosPeriodo.reduce((s, c) => s + c.valor, 0);
   const porCategoria = { templates:0, tokens:0, implementacao:0, salario:0, outros:0 };
   custosPeriodo.forEach(c => {
     const bucket = ROI_CATEGORIA_BUCKET_FRONT[String(c.categoria || '').trim().toLowerCase()] || 'outros';
     porCategoria[bucket] += c.valor;
   });
+
+  // Rateio da Manutenção: soma o valor lançado por mês, divide pelos dias
+  // corridos daquele mês e conta só os dias que o período cobre.
+  const manutencaoPorMes = {};
+  custosData.forEach(c => {
+    if (!isManutencao(String(c.categoria || '').trim().toLowerCase())) return;
+    const mes = c.date.slice(0, 7);
+    manutencaoPorMes[mes] = (manutencaoPorMes[mes] || 0) + c.valor;
+  });
+  let manutencaoPeriodo = 0;
+  Object.keys(manutencaoPorMes).forEach(mes => {
+    const dias = contarDiasNoPeriodo(mes, from, to);
+    if (dias <= 0) return;
+    manutencaoPeriodo += (manutencaoPorMes[mes] / diasNoMes(mes)) * dias;
+  });
+  cr += manutencaoPeriodo;
+  porCategoria.salario += manutencaoPeriodo;
 
   const mesesTocados = new Set();
   vendasPeriodo.forEach(v => mesesTocados.add(v.date.slice(0, 7)));
