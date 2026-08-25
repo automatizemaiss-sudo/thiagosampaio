@@ -371,6 +371,15 @@
   #custosPage.visible { display: flex; flex-direction: column; gap: 26px; }
   .custos-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
   .custos-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+  /* ── ROI PAGE ── */
+  #roiPage { display: none; }
+  #roiPage.visible { display: flex; flex-direction: column; gap: 26px; }
+  .card.danger-highlight { border-color: rgba(192,57,43,0.4); background: linear-gradient(135deg, var(--surface) 0%, rgba(192,57,43,0.06) 100%); }
+  .card.danger-highlight::before { background: var(--danger); opacity: 1; }
+  .card-value.is-money-danger { font-size: 26px; color: var(--danger); }
+  .card-badge-inline { display: inline-block; font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 20px; background: rgba(196,169,106,0.15); color: var(--accent); margin-top: 6px; letter-spacing: 0.5px; }
+  .card-badge-inline.pending { background: rgba(245,158,11,0.15); color: var(--amber); }
+  td.val-money-danger { color: var(--danger); font-weight: 600; }
   .cat-badge {
     display: inline-block; padding: 2px 9px; border-radius: 5px;
     font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
@@ -450,6 +459,7 @@
   <button class="main-tab" data-page="transferencias">🔄 TRANSFERÊNCIAS</button>
   <button class="main-tab" data-page="custos">💸 CUSTOS</button>
   <button class="main-tab" data-page="followups">🔁 FOLLOW-UPS</button>
+  <button class="main-tab" data-page="roi">🎯 ROI</button>
 </div>
 <!-- ── MÉTRICAS CONTROLS ── -->
 <div id="metricasControls">
@@ -616,6 +626,28 @@
       </table>
     </div>
   </div>
+  <!-- ══ ROI PAGE ══ -->
+  <div id="roiPage">
+    <div class="cards-section-label">RESUMO DE ROI</div>
+    <div class="custos-cards-grid" id="roiCardsGrid"></div>
+    <div id="roiFaixaNote" style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;"></div>
+    <div class="chart-panel">
+      <div class="chart-header"><div class="chart-title">EVOLUÇÃO DO ROI</div></div>
+      <div class="chart-body"><canvas id="roiChart"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-header"><div class="chart-title">COMPOSIÇÃO DO CUSTO TOTAL</div></div>
+      <div class="chart-body"><canvas id="roiCostChart"></canvas></div>
+    </div>
+    <div class="cards-section-label">DETALHAMENTO MÊS A MÊS</div>
+    <div class="custos-table-wrap">
+      <table>
+        <thead id="roiTableHead"></thead>
+        <tbody id="roiTableBody"></tbody>
+        <tfoot id="roiTableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
 </main>
 <script>
 // ════════════════════════════════════════════
@@ -635,6 +667,7 @@ const TABS_CONFIG = {
   transferencias:  true,
   custos:          true,
   followups:       true,
+  roi:             true,
 };
 // ════════════════════════════════════════════
 // STATE
@@ -647,6 +680,8 @@ let templatesData      = {};
 let transferenciasData = [];
 let custosData         = [];
 let followupsData      = [];
+let roiData             = [];
+let roiConfig           = { taxa_liquido: 0.93 };
 let metricGroup  = 'geral'; // 'geral' | 'segmentacoes' | 'qualwebn' | 'templates'
 let activeSubTab = null;    // sub-aba ativa dentro de segmentacoes/qualwebn/templates
 let viewMode     = 'cards';
@@ -656,6 +691,8 @@ let lineChart    = null;
 let vendasChart  = null;
 let funilChart   = null;
 let custosChart  = null;
+let roiChart     = null;
+let roiCostChart = null;
 // Paleta de cores para categorias de custo
 const CAT_COLORS = ['#C4A96A','#60a5fa','#f59e0b','#a78bfa','#34d399','#fb923c','#f472b6'];
 const catColorMap = {};
@@ -921,6 +958,8 @@ function aplicarPayload(p) {
   transferenciasData = Array.isArray(p.transferencias) ? p.transferencias : [];
   custosData         = Array.isArray(p.custos)         ? p.custos         : [];
   followupsData      = Array.isArray(p.followups)      ? p.followups      : [];
+  roiData             = p.roi && Array.isArray(p.roi.meses) ? p.roi.meses : [];
+  roiConfig           = p.roi && p.roi.config ? p.roi.config : { taxa_liquido: 0.93 };
 }
 // ════════════════════════════════════════════
 // SYNC VENDAS
@@ -994,6 +1033,41 @@ function getFollowupsFiltered() {
   const to   = document.getElementById('dateTo').value;
   return followupsData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
+// O ROI é apurado mês a mês (ver Especificação, seção 4): inclui todo
+// mês cujo "mes" (YYYY-MM) caia dentro do período selecionado. Nunca
+// soma faturamento de vários meses para depois escolher UMA faixa —
+// cada mês já vem do backend com sua própria faixa/comissão calculada.
+function getRoiFiltered() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const fromMes = from ? from.slice(0, 7) : '';
+  const toMes   = to   ? to.slice(0, 7)   : '';
+  return roiData.filter(m => (!fromMes || m.mes >= fromMes) && (!toMes || m.mes <= toMes));
+}
+// Soma os meses filtrados num único "período selecionado", respeitando
+// a regra de nunca recalcular a faixa sobre o total acumulado: FL, CR e
+// comissão são somados já prontos de cada mês.
+function aggregateRoi(meses) {
+  const fb  = meses.reduce((s, m) => s + m.faturamento_bruto, 0);
+  const fl  = meses.reduce((s, m) => s + m.faturamento_liquido, 0);
+  const com = meses.reduce((s, m) => s + m.comissao, 0);
+  const cr  = meses.reduce((s, m) => s + m.custos_registrados, 0);
+  const ct  = cr + com;
+  const porCategoria = { templates:0, tokens:0, implementacao:0, salario:0, outros:0 };
+  meses.forEach(m => {
+    Object.keys(porCategoria).forEach(k => porCategoria[k] += (m.custos_por_categoria[k] || 0));
+  });
+  return {
+    faturamento_bruto: fb,
+    faturamento_liquido: fl,
+    comissao: com,
+    custos_registrados: cr,
+    custos_por_categoria: porCategoria,
+    custo_total: ct,
+    roi_multiplo:   ct > 0 ? fl / ct : null,
+    roi_percentual: ct > 0 ? (fl - ct) / ct : null,
+  };
+}
 function currentGroupData() {
   if (metricGroup === 'segmentacoes') return segmentacoesData;
   if (metricGroup === 'qualwebn')     return qualwebnData;
@@ -1022,6 +1096,9 @@ const fN   = v => v === null ? null : Math.round(v).toLocaleString('pt-BR');
 const fBRL = v => v === null ? null : v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 const fP   = v => v === null ? null : v.toFixed(1) + '%';
 const fD   = d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
+const fMes = m => { const [y, mm] = m.split('-'); return mm + '/' + y; };
+const fX   = v => v === null || v === undefined ? '—' : v.toFixed(2).replace('.', ',') + 'x';
+const fPctSigned = v => v === null || v === undefined ? '—' : (v*100).toFixed(1).replace('.', ',') + '%';
 function aggregates(rows) {
   const total=sum(rows,'total'), naoChamados=sum(rows,'naoChamados'),
         chamados=sum(rows,'chamados'), conectados=sum(rows,'conectados'),
@@ -1479,6 +1556,163 @@ function renderCustos(rows) {
     </tr>`;
 }
 // ════════════════════════════════════════════
+// ROI
+// ════════════════════════════════════════════
+const ROI_CUSTO_CATS = [
+  { key:'templates',      label:'Templates' },
+  { key:'tokens',         label:'Tokens' },
+  { key:'implementacao',  label:'Implementação' },
+  { key:'salario',        label:'Salário/Manutenção' },
+  { key:'outros',         label:'Outros' },
+];
+function renderRoi(meses) {
+  const grid = document.getElementById('roiCardsGrid'); grid.innerHTML = '';
+  const agg = aggregateRoi(meses);
+  const hasCT = agg.custo_total > 0;
+  const roiNeg = agg.roi_percentual !== null && agg.roi_percentual < 0;
+
+  const roiEl = document.createElement('div');
+  roiEl.className = 'card ' + (!hasCT ? '' : roiNeg ? 'danger-highlight' : 'green-highlight');
+  roiEl.innerHTML = `
+    <span class="card-icon">🎯</span>
+    <div class="card-label">ROI</div>
+    <div class="card-value ${!hasCT?'na':''}" style="font-size:30px;${hasCT?('color:'+(roiNeg?'var(--danger)':'var(--green)')+';'):''}">${hasCT ? fX(agg.roi_multiplo) : '—'}</div>
+    <div class="card-sub" style="${hasCT&&roiNeg?'color:var(--danger);':''}">${hasCT ? fPctSigned(agg.roi_percentual) : 'sem custos lançados no período'}</div>
+  `;
+  grid.appendChild(roiEl);
+
+  const flEl = document.createElement('div');
+  flEl.className = 'card highlight';
+  flEl.innerHTML = `
+    <span class="card-icon">💰</span>
+    <div class="card-label">Faturamento Líquido</div>
+    <div class="card-value is-money" style="font-size:24px;">${fBRL(agg.faturamento_liquido)}</div>
+    <div class="card-sub">Bruto: ${fBRL(agg.faturamento_bruto)}</div>
+  `;
+  grid.appendChild(flEl);
+
+  const ctEl = document.createElement('div');
+  ctEl.className = 'card';
+  ctEl.innerHTML = `
+    <span class="card-icon">💸</span>
+    <div class="card-label">Custo Total</div>
+    <div class="card-value is-money-red" style="font-size:24px;">${hasCT ? fBRL(agg.custo_total) : '—'}</div>
+    <div class="card-sub">Custos ${fBRL(agg.custos_registrados)} + Comissão ${fBRL(agg.comissao)}</div>
+  `;
+  grid.appendChild(ctEl);
+
+  const ultimo = meses.length ? meses[meses.length-1] : null;
+  const algumaEstimada = meses.some(m => !m.comissao_lancada);
+  const comEl = document.createElement('div');
+  comEl.className = 'card';
+  comEl.innerHTML = `
+    <span class="card-icon">🏆</span>
+    <div class="card-label">Comissão</div>
+    <div class="card-value is-money-red" style="font-size:24px;">${fBRL(agg.comissao)}</div>
+    <div class="card-sub">${ultimo ? ultimo.faixa + ' · ' + (ultimo.percentual_comissao*100).toFixed(0) + '%' : '—'}</div>
+    <span class="card-badge-inline${algumaEstimada?' pending':''}">${algumaEstimada ? 'estimada (ainda não lançada)' : 'lançada'}</span>
+  `;
+  grid.appendChild(comEl);
+
+  const noteEl = document.getElementById('roiFaixaNote');
+  if (ultimo && ultimo.falta_proxima_faixa !== null && ultimo.falta_proxima_faixa > 0) {
+    noteEl.innerHTML = `📈 Faltam <strong style="color:var(--accent);">${fBRL(ultimo.falta_proxima_faixa)}</strong> de Faturamento Líquido em ${fMes(ultimo.mes)} para a faixa <strong>${ultimo.proxima_faixa}</strong> — meta comercial: subir de faixa aumenta a comissão e reduz o ROI.`;
+  } else if (ultimo) {
+    noteEl.innerHTML = `🏆 ${fMes(ultimo.mes)} já está na faixa máxima (${ultimo.faixa}).`;
+  } else {
+    noteEl.innerHTML = '';
+  }
+
+  const labels = meses.map(m => fMes(m.mes));
+  if (roiChart) roiChart.destroy();
+  if (meses.length) {
+    roiChart = new Chart(document.getElementById('roiChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label:'ROI múltiplo', data: meses.map(m=>m.roi_multiplo), borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.08)', borderWidth:2, pointRadius:4, pointHoverRadius:6, tension:0.35, fill:true, yAxisID:'yMult', spanGaps:true },
+          { label:'ROI %', data: meses.map(m=>m.roi_percentual===null?null:m.roi_percentual*100), borderColor:'#C4A96A', backgroundColor:'rgba(196,169,106,0.08)', borderWidth:2, pointRadius:4, pointHoverRadius:6, tension:0.35, fill:false, yAxisID:'yPct', spanGaps:true },
+        ],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{display:true,labels:{color:'#9BAA9F',font:{family:'JetBrains Mono',size:11},boxWidth:12,padding:16}},
+          tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,callbacks:{label:ctx=>{const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(ctx.dataset.label==='ROI %'?v.toFixed(1)+'%':v.toFixed(2)+'x');}}}
+        },
+        scales:{
+          x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+          yMult:{type:'linear',position:'left',ticks:{color:'#22c55e',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(1)+'x'},grid:{color:'rgba(255,255,255,0.04)'}},
+          yPct:{type:'linear',position:'right',ticks:{color:'#C4A96A',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}},
+        }
+      }
+    });
+  }
+
+  if (roiCostChart) roiCostChart.destroy();
+  if (meses.length) {
+    const datasets = ROI_CUSTO_CATS.map(c => ({
+      label:c.label, data: meses.map(m=>m.custos_por_categoria[c.key]||0),
+      backgroundColor:getCatColor(c.label), borderRadius:4, stack:'custo',
+    }));
+    datasets.push({ label:'Comissão', data: meses.map(m=>m.comissao), backgroundColor:'#C4A96A', borderRadius:4, stack:'custo' });
+    roiCostChart = new Chart(document.getElementById('roiCostChart').getContext('2d'), {
+      type:'bar',
+      data:{ labels, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{display:true,position:'bottom',labels:{color:'#9BAA9F',font:{family:'JetBrains Mono',size:10},boxWidth:10,padding:12}},
+          tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',footerColor:'#C4A96A',footerFont:{family:'JetBrains Mono',weight:'700'},padding:12,filter:item=>item.parsed.y>0,callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}),footer:items=>{const total=items.reduce((s,i)=>s+i.parsed.y,0);return 'Custo total: '+total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}}}
+        },
+        scales:{
+          x:{stacked:true,ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+          y:{stacked:true,ticks:{color:'#C4A96A',font:{family:'JetBrains Mono',size:10},callback:v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0})},grid:{color:'rgba(255,255,255,0.04)'}}
+        }
+      }
+    });
+  }
+
+  document.getElementById('roiTableHead').innerHTML = `<tr><th>Mês</th><th style="text-align:right;">Fat. Bruto</th><th style="text-align:right;">Fat. Líquido</th><th>Faixa</th><th style="text-align:right;">Comissão</th><th style="text-align:right;">Custos</th><th style="text-align:right;">Custo Total</th><th style="text-align:right;">ROI</th></tr>`;
+  const tbody = document.getElementById('roiTableBody'); tbody.innerHTML = '';
+  if (!meses.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Nenhum mês no período selecionado.</td></tr>`;
+    document.getElementById('roiTableFoot').innerHTML = '';
+    return;
+  }
+  meses.forEach(m => {
+    const ctZero = m.custo_total <= 0;
+    const roiNegLinha = m.roi_percentual !== null && m.roi_percentual < 0;
+    const roiCls = ctZero ? '' : (roiNegLinha ? 'val-money-danger' : 'val-green');
+    const roiTxt = ctZero ? '—' : (fX(m.roi_multiplo) + ' (' + fPctSigned(m.roi_percentual) + ')');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${fMes(m.mes)}${m.em_andamento?' <span class="card-badge-inline pending" style="margin:0 0 0 6px;">em andamento</span>':''}</td>
+      <td style="text-align:right;">${fBRL(m.faturamento_bruto)}</td>
+      <td style="text-align:right;">${fBRL(m.faturamento_liquido)}</td>
+      <td>${m.faixa} · ${(m.percentual_comissao*100).toFixed(0)}%</td>
+      <td style="text-align:right;" class="val-red">${fBRL(m.comissao)}${!m.comissao_lancada?' <span style="color:var(--amber);font-size:9px;">est.</span>':''}</td>
+      <td style="text-align:right;" class="val-red">${fBRL(m.custos_registrados)}</td>
+      <td style="text-align:right;color:var(--accent);">${ctZero?'—':fBRL(m.custo_total)}</td>
+      <td style="text-align:right;" class="${roiCls}">${roiTxt}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('roiTableFoot').innerHTML = `
+    <tr>
+      <td>TOTAL</td>
+      <td style="text-align:right;">${fBRL(agg.faturamento_bruto)}</td>
+      <td style="text-align:right;">${fBRL(agg.faturamento_liquido)}</td>
+      <td></td>
+      <td style="text-align:right;" class="val-red">${fBRL(agg.comissao)}</td>
+      <td style="text-align:right;" class="val-red">${fBRL(agg.custos_registrados)}</td>
+      <td style="text-align:right;color:var(--accent);">${hasCT?fBRL(agg.custo_total):'—'}</td>
+      <td style="text-align:right;">${hasCT?fX(agg.roi_multiplo):'—'}</td>
+    </tr>`;
+}
+// ════════════════════════════════════════════
 // FOLLOW-UPS
 // ════════════════════════════════════════════
 const FOLLOWUP_TIPOS = [
@@ -1615,12 +1849,16 @@ function refreshFollowups() {
   const search = document.getElementById('followupsSearch').value;
   renderFollowups(rows, search);
 }
+function refreshRoi() {
+  renderRoi(getRoiFiltered());
+}
 function refreshAll() {
   if (activePage === 'metricas')            refreshMetricas();
   else if (activePage === 'vendas')         refreshVendas();
   else if (activePage === 'transferencias') refreshTransferencias();
   else if (activePage === 'custos')         refreshCustos();
   else if (activePage === 'followups')      refreshFollowups();
+  else if (activePage === 'roi')            refreshRoi();
 }
 function switchView(mode) {
   viewMode = mode;
@@ -1630,7 +1868,7 @@ function switchView(mode) {
 }
 function switchPage(page) {
   activePage = page;
-  const pages = ['metricas','vendas','transferencias','custos','followups'];
+  const pages = ['metricas','vendas','transferencias','custos','followups','roi'];
   pages.forEach(p => {
     const el = document.getElementById(p === 'metricas' ? 'metricasPage' : p+'Page');
     if (p === 'metricas') el.style.display = page === 'metricas' ? '' : 'none';
