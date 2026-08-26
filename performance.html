@@ -469,6 +469,7 @@
       <button class="seg-tab" data-group="segmentacoes">SEGMENTAÇÕES</button>
       <button class="seg-tab" data-group="qualwebn">QUAL WEBN</button>
       <button class="seg-tab" data-group="templates">TEMPLATES</button>
+      <button class="seg-tab" data-group="waba">WABA</button>
     </div>
     <div class="view-toggle">
       <button class="view-btn active" id="btnViewCards">
@@ -677,6 +678,7 @@ let vendasData         = [];
 let segmentacoesData   = {};
 let qualwebnData       = {};
 let templatesData      = {};
+let wabaData            = {};
 let transferenciasData = [];
 let custosData         = [];
 let followupsData      = [];
@@ -726,6 +728,7 @@ const METRIC_TOOLTIPS = {
   total:          { title:'Todos',               text:'Todos os leads da base no período, chamados ou não.' },
   naoChamados:    { title:'Não Chamados',        text:'Leads da base que não foram chamados por erro de dados: telefone ou e-mail inválidos.' },
   followupsMarcados: { title:'Follow-ups Marcados', text:'Contatos únicos que tiveram um follow-up marcado no dia (data de "momento em que foi marcado"). Se o mesmo telefone for marcado mais de uma vez no mesmo dia, conta só uma vez.' },
+  conectadosNaoAtribuidos: { title:'Conexão — Não Atribuídos', text:'Leads que chamaram a gente por conta própria (inbound), sem termos disparado ativamente pra eles. Não entra na métrica principal de Conexão.' },
 };
 const METRIC_COLORS = {
   chamados:'#5C6B61', conectados:'#ff6b6b', vendas:'#22c55e',
@@ -757,6 +760,7 @@ const SECONDARY_CARDS = [
   { key:'total',          label:'Todos',               icon:'👥', format:'num' },
   { key:'naoChamados',    label:'Não Chamados',        icon:'⛔', format:'num' },
   { key:'followupsMarcados', label:'Follow-ups Marcados', icon:'📌', format:'num' },
+  { key:'conectadosNaoAtribuidos', label:'Conexão — Não Atribuídos', icon:'📥', format:'num' },
 ];
 // Cards principais para as sub-abas (Segmentações/Qual Webn/Templates) —
 // mesma estrutura de 7 métricas do GERAL.
@@ -784,8 +788,25 @@ const FUNIL_CARD_CFG_SECONDARY_FULL = [
 const FUNIL_CARD_CFG_SECONDARY_BASIC = [
   { key:'chamados', label:'Tentativas de Envio', icon:'📤', format:'num' },
 ];
+// WABA: sem Vendas (não foi pedido — ver getGroupedWaba() no backend),
+// mas COM Erros, porque "entregues" por WABA vem da aba Custos.
+const WABA_CARD_CFG_PRIMARY = [
+  { key:'entregues',   label:'Mensagens Entregues', icon:'📬', format:'num' },
+  { key:'conectados',  label:'Conexões',            icon:'💬', format:'num' },
+  { key:'links',       label:'Links',               icon:'🔗', format:'num' },
+  { key:'taxaConexao', label:'% Conexão',           icon:'📡', format:'pct' },
+];
+const WABA_CARD_CFG_SECONDARY = [
+  { key:'chamados', label:'Tentativas de Envio', icon:'📤', format:'num' },
+  { key:'erros',    label:'Erros de Envio',      icon:'⚠️', format:'num' },
+];
+function getFunilPrimaryCards() {
+  return metricGroup === 'waba' ? WABA_CARD_CFG_PRIMARY : FUNIL_CARD_CFG_PRIMARY;
+}
 function getFunilSecondaryCards() {
-  return metricGroup === 'templates' ? FUNIL_CARD_CFG_SECONDARY_FULL : FUNIL_CARD_CFG_SECONDARY_BASIC;
+  if (metricGroup === 'templates') return FUNIL_CARD_CFG_SECONDARY_FULL;
+  if (metricGroup === 'waba')      return WABA_CARD_CFG_SECONDARY;
+  return FUNIL_CARD_CFG_SECONDARY_BASIC;
 }
 // Métricas do gráfico "Evolução Diária" — GERAL.
 const METRICS_CONFIG = [
@@ -831,12 +852,23 @@ const FUNIL_METRICS_CONFIG_BASIC = [
   { key:'convTotal',   label:'% Conv.',    format:'pct', on:true  },
   { key:'convConexao', label:'% Conv. Conn.', format:'pct', on:true  },
 ];
+// WABA: sem Vendas/Conv. — mesmo motivo do card (ver WABA_CARD_CFG_PRIMARY).
+const FUNIL_METRICS_CONFIG_WABA = [
+  { key:'entregues',   label:'Entregues', format:'num', on:true  },
+  { key:'conectados',  label:'Conexões',  format:'num', on:true  },
+  { key:'links',       label:'Links',     format:'num', on:true  },
+  { key:'taxaConexao', label:'% Conexão', format:'pct', on:true  },
+  { key:'chamados',    label:'Tentativas',format:'num', on:false },
+  { key:'erros',       label:'Erros',     format:'num', on:false },
+];
 const funilMetricVis = {};
-[...FUNIL_METRICS_CONFIG_TEMPLATES, ...FUNIL_METRICS_CONFIG_BASIC].forEach(m => {
+[...FUNIL_METRICS_CONFIG_TEMPLATES, ...FUNIL_METRICS_CONFIG_BASIC, ...FUNIL_METRICS_CONFIG_WABA].forEach(m => {
   if (!(m.key in funilMetricVis)) funilMetricVis[m.key] = m.on;
 });
 function getFunilMetricsConfig() {
-  return metricGroup === 'templates' ? FUNIL_METRICS_CONFIG_TEMPLATES : FUNIL_METRICS_CONFIG_BASIC;
+  if (metricGroup === 'templates') return FUNIL_METRICS_CONFIG_TEMPLATES;
+  if (metricGroup === 'waba')      return FUNIL_METRICS_CONFIG_WABA;
+  return FUNIL_METRICS_CONFIG_BASIC;
 }
 // Tabela detalhada — GERAL
 const TABLE_COLS = [
@@ -884,8 +916,19 @@ const FUNIL_TABLE_COLS_BASIC = [
   { key:'convTotal',   label:'Conv. Total',   format:'pct'  },
   { key:'convConexao', label:'Conv. Conexão', format:'pct'  },
 ];
+const FUNIL_TABLE_COLS_WABA = [
+  { key:'date',        label:'Data',       format:'date' },
+  { key:'chamados',    label:'Tentativas', format:'num'  },
+  { key:'conectados',  label:'Conexões',   format:'num'  },
+  { key:'links',       label:'Links',      format:'num'  },
+  { key:'entregues',   label:'Entregues',  format:'num'  },
+  { key:'erros',       label:'Erros',      format:'num'  },
+  { key:'taxaConexao', label:'% Conexão',  format:'pct'  },
+];
 function getFunilTableCols() {
-  return metricGroup === 'templates' ? FUNIL_TABLE_COLS_TEMPLATES : FUNIL_TABLE_COLS_BASIC;
+  if (metricGroup === 'templates') return FUNIL_TABLE_COLS_TEMPLATES;
+  if (metricGroup === 'waba')      return FUNIL_TABLE_COLS_WABA;
+  return FUNIL_TABLE_COLS_BASIC;
 }
 // ════════════════════════════════════════════
 // TOAST
@@ -955,6 +998,7 @@ function aplicarPayload(p) {
   segmentacoesData   = p.segmentacoes && typeof p.segmentacoes === 'object' ? p.segmentacoes : {};
   qualwebnData       = p.qualwebn     && typeof p.qualwebn     === 'object' ? p.qualwebn     : {};
   templatesData      = p.templates    && typeof p.templates    === 'object' ? p.templates    : {};
+  wabaData            = p.waba        && typeof p.waba         === 'object' ? p.waba         : {};
   transferenciasData = Array.isArray(p.transferencias) ? p.transferencias : [];
   custosData         = Array.isArray(p.custos)         ? p.custos         : [];
   followupsData      = Array.isArray(p.followups)      ? p.followups      : [];
@@ -1033,17 +1077,6 @@ function getFollowupsFiltered() {
   const to   = document.getElementById('dateTo').value;
   return followupsData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
-// O ROI é apurado mês a mês (ver Especificação, seção 4): inclui todo
-// mês cujo "mes" (YYYY-MM) caia dentro do período selecionado. Nunca
-// soma faturamento de vários meses para depois escolher UMA faixa —
-// cada mês já vem do backend com sua própria faixa/comissão calculada.
-function getRoiFiltered() {
-  const from = document.getElementById('dateFrom').value;
-  const to   = document.getElementById('dateTo').value;
-  const fromMes = from ? from.slice(0, 7) : '';
-  const toMes   = to   ? to.slice(0, 7)   : '';
-  return roiData.filter(m => (!fromMes || m.mes >= fromMes) && (!toMes || m.mes <= toMes));
-}
 // Mesmo mapeamento categoria → bucket usado no backend (CUSTO_CATEGORIA_BUCKET
 // em code.gs). Precisa ficar duplicado aqui porque custosData vem cru
 // (categoria como string), não pré-bucketizado — só o payload roi.meses
@@ -1092,31 +1125,35 @@ function fimCicloManutencao(inicioCiclo) {
   if (nm === 13) { nm = 1; ny += 1; }
   return `${ny}-${String(nm).padStart(2, '0')}-15`;
 }
-// "Período selecionado" calculado pelo intervalo de DIAS exato (igual às
-// outras abas), não pelo mês fechado — diferente da tabela/gráficos
-// mensais, que continuam mostrando o mês inteiro (isso é intencional).
+// Dias corridos no mês civil 'YYYY-MM' (usa o truque do dia 0 do mês seguinte).
+function diasNoMesCivil(mes) {
+  const [y, m] = mes.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+// Núcleo do cálculo de ROI para um intervalo de DIAS exato [from, to]
+// (strings 'YYYY-MM-DD', vazio = sem limite). É usado tanto pro card do
+// "período selecionado" quanto, fatiado por mês, pro gráfico/tabela —
+// ver getRoiMesesFiltrados() logo abaixo.
 //
 // FB/FL/CR vêm de somar vendasData/custosData filtrados pelo dia exato —
-// EXCETO "Manutenção", que é custo fixo mensal (ex.: sempre R$ 2.000,
-// lançado num único dia do mês). Contar esse lançamento só no dia exato
-// em que foi feito distorceria qualquer período mais curto que o mês
-// inteiro (zerado se o dia do lançamento cair fora do período, ou cheio
-// se cair dentro). Em vez disso, o valor do mês é dividido pelos dias
-// corridos do mês e somado só pelos dias que o período selecionado cobre.
+// EXCETO "Manutenção", que é custo fixo por CICLO de cobrança (16 a 15,
+// não mês civil — ver inicioCicloManutencao()). Contar esse lançamento
+// só no dia exato em que foi feito distorceria qualquer período mais
+// curto que o ciclo inteiro (zerado se o dia do lançamento cair fora do
+// período, ou cheio se cair dentro). Em vez disso, o valor do ciclo é
+// dividido pelos dias corridos do ciclo e somado só pelos dias que o
+// período selecionado cobre.
 //
 // A COMISSÃO não pode ser recalculada do zero aqui: a FAIXA (%) só pode
 // ser definida pelo faturamento do MÊS INTEIRO (regra de negócio fixa —
 // não dá pra saber a faixa certa olhando só uma fatia do mês). Então,
-// para cada mês tocado pelo período:
-//   fração = faturamento do mês DENTRO do período / faturamento do mês INTEIRO
-//   comissão do período += comissão do mês inteiro (real lançada, se já
-//                          existir, senão a calculada pela faixa) × fração
-// Quando o período selecionado é o mês inteiro, fração = 1 e o valor bate
-// exatamente com o que já vem pronto em roiData — é o mesmo cálculo, só
-// que também funciona para pedaços de mês.
-function aggregatePeriodoRoi() {
-  const from = document.getElementById('dateFrom').value;
-  const to   = document.getElementById('dateTo').value;
+// para cada mês tocado pelo intervalo:
+//   fração = faturamento do mês DENTRO do intervalo / faturamento do mês INTEIRO
+//   comissão do intervalo += comissão do mês inteiro (real lançada, se já
+//                            existir, senão a calculada pela faixa) × fração
+// Quando o intervalo é o mês inteiro, fração = 1 e o valor bate
+// exatamente com o que já vem pronto em roiData.
+function computeRoiParaIntervalo(from, to) {
   const taxaLiquido = (roiConfig && roiConfig.taxa_liquido) || 0.93;
 
   const vendasPeriodo = vendasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
@@ -1138,7 +1175,7 @@ function aggregatePeriodoRoi() {
 
   // Rateio da Manutenção: soma o valor lançado por CICLO de cobrança
   // (16 a 15, não mês civil), divide pelos dias corridos daquele ciclo
-  // e conta só os dias que o período selecionado cobre.
+  // e conta só os dias que o intervalo cobre.
   const manutencaoPorCiclo = {};
   custosData.forEach(c => {
     if (!isManutencao(String(c.categoria || '').trim().toLowerCase())) return;
@@ -1182,10 +1219,48 @@ function aggregatePeriodoRoi() {
     roi_percentual: ct > 0 ? (fl - ct) / ct : null,
   };
 }
+// Cards do "período selecionado": o intervalo exato escolhido no seletor.
+function aggregatePeriodoRoi() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  return computeRoiParaIntervalo(from, to);
+}
+// Gráfico/tabela "mês a mês": para cada mês tocado pelo período
+// selecionado, mostra só a FATIA desse mês que caiu dentro do período —
+// não o mês fechado inteiro. Ex.: período de 16/07 a 15/08 mostra uma
+// barra com só 16–31/07 e outra com só 01–15/08, não os dois meses
+// cheios. Faixa/percentual/indicador de próxima faixa continuam vindo
+// do mês FECHADO (roiData), porque só fazem sentido no mês inteiro.
+function getRoiMesesFiltrados() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const fromMes = from ? from.slice(0, 7) : '';
+  const toMes   = to   ? to.slice(0, 7)   : '';
+  const mesesTocados = roiData.filter(m => (!fromMes || m.mes >= fromMes) && (!toMes || m.mes <= toMes));
+
+  return mesesTocados.map(infoMes => {
+    const inicioMes = infoMes.mes + '-01';
+    const fimMes    = infoMes.mes + '-' + String(diasNoMesCivil(infoMes.mes)).padStart(2, '0');
+    const de  = from && from > inicioMes ? from : inicioMes;
+    const ate = to   && to   < fimMes    ? to   : fimMes;
+    const fatia = computeRoiParaIntervalo(de, ate);
+    return {
+      mes: infoMes.mes,
+      faixa: infoMes.faixa,
+      percentual_comissao: infoMes.percentual_comissao,
+      comissao_lancada: infoMes.comissao_lancada,
+      proxima_faixa: infoMes.proxima_faixa,
+      falta_proxima_faixa: infoMes.falta_proxima_faixa,
+      em_andamento: infoMes.em_andamento,
+      ...fatia,
+    };
+  });
+}
 function currentGroupData() {
   if (metricGroup === 'segmentacoes') return segmentacoesData;
   if (metricGroup === 'qualwebn')     return qualwebnData;
   if (metricGroup === 'templates')    return templatesData;
+  if (metricGroup === 'waba')         return wabaData;
   return {};
 }
 function getSubTabFiltered(nome) {
@@ -1220,10 +1295,11 @@ function aggregates(rows) {
         semInteresse=sum(rows,'semInteresse'), transferencias=sum(rows,'transferencias'),
         enviadas=sum(rows,'enviadas'), entregues=sum(rows,'entregues'),
         lidas=sum(rows,'lidas'), erros=sum(rows,'erros'),
-        followupsMarcados=sum(rows,'followupsMarcados');
+        followupsMarcados=sum(rows,'followupsMarcados'),
+        conectadosNaoAtribuidos=sum(rows,'conectadosNaoAtribuidos');
   return {
     total, naoChamados, chamados, conectados, links, vendas, semInteresse, transferencias,
-    enviadas, entregues, lidas, erros, followupsMarcados,
+    enviadas, entregues, lidas, erros, followupsMarcados, conectadosNaoAtribuidos,
     taxaConexao: entregues ? (conectados||0)/entregues*100 : null,
     convTotal:   entregues ? (vendas||0)/entregues*100     : null,
     convConexao: conectados ? (vendas||0)/conectados*100   : null,
@@ -1295,7 +1371,7 @@ function renderCards(agg) {
 function renderFunilCards(agg) {
   const grid = document.getElementById('funilCardsGrid');
   grid.innerHTML = '';
-  FUNIL_CARD_CFG_PRIMARY.forEach(cfg => grid.appendChild(buildCard(cfg, agg, false)));
+  getFunilPrimaryCards().forEach(cfg => grid.appendChild(buildCard(cfg, agg, false)));
   const secGrid  = document.getElementById('funilCardsGridSecondary');
   const secLabel = document.getElementById('funilSecondaryLabel');
   secGrid.innerHTML = '';
@@ -1894,7 +1970,7 @@ function buildSubTabs() {
     return;
   }
   bar.style.display = '';
-  label.textContent = metricGroup === 'segmentacoes' ? 'SEGMENTAÇÕES' : metricGroup === 'qualwebn' ? 'QUAL WEBN' : 'TEMPLATES';
+  label.textContent = metricGroup === 'segmentacoes' ? 'SEGMENTAÇÕES' : metricGroup === 'qualwebn' ? 'QUAL WEBN' : metricGroup === 'waba' ? 'WABA' : 'TEMPLATES';
   const data   = currentGroupData();
   const nomes  = Object.keys(data).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
   if (!activeSubTab || !nomes.includes(activeSubTab)) {
@@ -1963,7 +2039,7 @@ function refreshFollowups() {
   renderFollowups(rows, search);
 }
 function refreshRoi() {
-  renderRoi(getRoiFiltered(), aggregatePeriodoRoi());
+  renderRoi(getRoiMesesFiltrados(), aggregatePeriodoRoi());
 }
 function refreshAll() {
   if (activePage === 'metricas')            refreshMetricas();

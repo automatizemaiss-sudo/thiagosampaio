@@ -113,6 +113,7 @@
  *    /exec?sheet=custos         → custos (legado)
  *    /exec?sheet=followups      → follow-ups (legado)
  *    /exec?sheet=roi            → ROI mensal isolado (legado/depuração)
+ *    /exec?sheet=waba           → funis por número WABA (legado/depuração)
  *
  *  POST /exec  body: {"action":"classificarVendas"}
  *    → classifica duplicatas de venda (ver classificarVendas()).
@@ -142,6 +143,21 @@
  *
  *  FOLLOW-UPS MARCADOS vem da aba "follow-ups_marcados", agrupado pela
  *  data de "momento_em_que_foi_marcado", com telefones únicos por dia.
+ *
+ *  WABA (número comercial de disparo): coluna presente em CHAMADO,
+ *  CONEXÃO, LINK e nas linhas "Templates da Meta" da aba Custos. Vira
+ *  um agrupamento à parte (payload.waba), igual segmentação/qual_webn/
+ *  template_name, MAS sem vendas (não foi pedido) — ver getGroupedWaba().
+ *  CONEXÃO e LINK só ficam confiáveis a partir de
+ *  WABA_CONEXAO_LINK_MIN_DATE; CHAMADO já tinha WABA antes disso.
+ *
+ *  CONEXÃO — NÃO ATRIBUÍDOS: leads que chamaram a gente por conta
+ *  própria (WABA = CONEXAO_NAO_ATRIBUIDO), em vez de leads que chamamos
+ *  ativamente. A partir de WABA_CONEXAO_LINK_MIN_DATE, "conectados" no
+ *  GERAL passa a ser contado direto da aba CONEXÃO (substituindo o
+ *  valor pronto da aba DADOS) excluindo esses leads, que viram a
+ *  métrica secundária "conectadosNaoAtribuidos" — ver getDadosDiarios()
+ *  e countConexaoPorDia().
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -166,9 +182,9 @@ const SHEETS = {
 const TIMEZONE = Session.getScriptTimeZone() || 'America/Sao_Paulo';
 
 // Cache do payload completo.
-// Suba o sufixo _v3 para _v4 etc. se mudar o FORMATO do payload — isso
+// Suba o sufixo _v4 para _v5 etc. se mudar o FORMATO do payload — isso
 // invalida na hora todo cache antigo que ainda estiver vivo.
-const CACHE_KEY = 'ts_dashboard_all_v3';
+const CACHE_KEY = 'ts_dashboard_all_v4';
 const CACHE_TTL = 600; // segundos (10 min)
 
 // ───────────────────────────────────────────────
@@ -201,6 +217,9 @@ function doGet(e) {
         break;
       case 'templates':
         payload = getGroupedFunil('template_name', makeCtx());
+        break;
+      case 'waba':
+        payload = getGroupedWaba(makeCtx());
         break;
       case 'transferencias':
         payload = getTransferencias(makeCtx());
@@ -264,6 +283,7 @@ function getAll() {
     segmentacoes:   getGroupedFunil('segmentacao',   ctx),
     qualwebn:       getGroupedFunil('qual_webn',     ctx),
     templates:      getGroupedFunil('template_name', ctx),
+    waba:           getGroupedWaba(ctx),
     transferencias: getTransferencias(ctx),
     custos:         getCustos(ctx),
     followups:      getFollowups(ctx),
@@ -482,7 +502,7 @@ function getDadosDiarios(ctx) {
       total:0, naoChamados:0, chamados:0, conectados:0, links:0, vendas:0,
       semInteresse:0, transferencias:0,
       enviadas:0, entregues:0, lidas:0, erros:0,
-      followupsMarcados:0,
+      followupsMarcados:0, conectadosNaoAtribuidos:0,
       _hasEntrega:false,
     };
   }
@@ -523,6 +543,20 @@ function getDadosDiarios(ctx) {
     porData[date].followupsMarcados = fupsMarcados[date];
   });
 
+  // Conexão, a partir de WABA_CONEXAO_LINK_MIN_DATE: substitui o valor
+  // pronto da aba DADOS (lido acima) por uma contagem direta da aba
+  // CONEXÃO, separando quem chamou a gente por conta própria (WABA =
+  // CONEXAO_NAO_ATRIBUIDO) pra a métrica secundária "não atribuídos" —
+  // esses leads saem do "conectados" principal. Antes dessa data a
+  // coluna WABA não existia em CONEXÃO, então o valor da aba DADOS
+  // continua sendo usado sem alteração (ver countConexaoPorDia()).
+  const conexaoPorDia = countConexaoPorDia(ctx);
+  Object.keys(conexaoPorDia).forEach(date => {
+    if (!porData[date]) { porData[date] = novoAcc(); ordemDatas.push(date); }
+    porData[date].conectados               = conexaoPorDia[date].conectados;
+    porData[date].conectadosNaoAtribuidos  = conexaoPorDia[date].naoAtribuidos;
+  });
+
   return ordemDatas.sort().map(date => {
     const acc = porData[date];
     return {
@@ -536,8 +570,30 @@ function getDadosDiarios(ctx) {
         lidas:     acc._hasEntrega ? acc.lidas     : null,
         erros:     acc._hasEntrega ? acc.erros     : null,
         followupsMarcados: acc.followupsMarcados,
+        conectadosNaoAtribuidos: acc.conectadosNaoAtribuidos,
       },
     };
+  });
+}
+
+// ───────────────────────────────────────────────
+// 1c) CONEXÃO POR DIA (WABA) — substitui o dado pronto da aba DADOS
+// ───────────────────────────────────────────────
+// A coluna WABA em CONEXÃO só passou a ser preenchida de forma
+// confiável a partir de WABA_CONEXAO_LINK_MIN_DATE — antes disso não
+// tentamos separar "não atribuídos", e getDadosDiarios() mantém o
+// número pronto da aba DADOS pra essas datas (ver uso acima).
+function countConexaoPorDia(ctx) {
+  return ctx.memo('conexaoPorDia', function () {
+    const porData = {};
+    ctx.rows(SHEETS.CONEXAO).forEach(r => {
+      const date = toISODate(r['criado_em'] || r['dia_de_conexao']);
+      if (!date || date < WABA_CONEXAO_LINK_MIN_DATE) return;
+      if (!porData[date]) porData[date] = { conectados: 0, naoAtribuidos: 0 };
+      if (isConexaoNaoAtribuida(r['WABA'])) porData[date].naoAtribuidos += 1;
+      else porData[date].conectados += 1;
+    });
+    return porData;
   });
 }
 
@@ -606,6 +662,22 @@ function getVendas(ctx) {
 const GROUP_MIN_DATE = {
   template_name: '2026-07-07',
 };
+
+// A coluna WABA em CONEXÃO e LINK só passou a ser preenchida de forma
+// confiável a partir desta data — CHAMADO já tinha WABA antes disso,
+// então não leva esse corte. Usada tanto por getGroupedWaba() quanto
+// por countConexaoPorDia() (ver seção 1c, acima).
+const WABA_CONEXAO_LINK_MIN_DATE = '2026-08-26';
+
+// Valor especial da coluna WABA em CONEXÃO para leads que chamaram a
+// gente por conta própria (inbound), em vez de leads que chamamos
+// ativamente. Esses NÃO entram no "conectados" principal nem em
+// nenhum bucket de WABA — viram a métrica secundária
+// "conectadosNaoAtribuidos" (ver getDadosDiarios).
+const CONEXAO_NAO_ATRIBUIDO = 'lead não atribuído, não recebeu disparo ativamente';
+function isConexaoNaoAtribuida(valorWaba) {
+  return String(valorWaba || '').trim().toLowerCase() === CONEXAO_NAO_ATRIBUIDO;
+}
 
 function getGroupedFunil(fieldName, ctx) {
   const buckets = {};
@@ -690,6 +762,86 @@ function getGroupedFunil(fieldName, ctx) {
         return { date, ...b, erros: Math.max(0, b.chamados - b.entregues) };
       }
       return { date, ...b, enviadas: null, entregues: null, lidas: null, erros: null };
+    });
+  });
+  return out;
+}
+
+// ───────────────────────────────────────────────
+// 3b) WABA — separa por número comercial de disparo (coluna WABA)
+// ───────────────────────────────────────────────
+// { "<valor da coluna WABA>": [{date, chamados, conectados, links,
+//                                vendas:null, enviadas, entregues,
+//                                lidas:null, erros}, ...] }
+//
+// Diferente de segmentação/qual_webn/template_name, NÃO calcula vendas
+// (não foi pedido, e WABA não atribui a venda de forma direta como as
+// outras dimensões) — fica sempre null, igual "lidas".
+//
+// Leads com WABA = CONEXAO_NAO_ATRIBUIDO (quem chamou a gente, não quem
+// chamamos ativamente) não entram em nenhum bucket aqui — já são
+// tratados à parte em getDadosDiarios()/countConexaoPorDia().
+//
+// CONEXÃO e LINK só ficam confiáveis a partir de WABA_CONEXAO_LINK_MIN_DATE
+// (CHAMADO não leva esse corte — já tinha WABA antes). "Erros" vem da
+// aba Custos (categoria "Templates da Meta", que também ganhou uma
+// coluna WABA): soma Enviados/Entregues por WABA/dia e erros = tentativas
+// (chamados) − entregues, igual já é feito por template_name.
+function getGroupedWaba(ctx) {
+  const buckets = {};
+
+  function ensure(valor, date) {
+    const key = fieldStr(valor);
+    if (!key || isConexaoNaoAtribuida(key)) return null;
+    if (!buckets[key]) buckets[key] = {};
+    if (!buckets[key][date]) {
+      buckets[key][date] = { chamados: 0, conectados: 0, links: 0, enviadas: 0, entregues: 0 };
+    }
+    return buckets[key][date];
+  }
+
+  ctx.rows(SHEETS.CHAMADO).forEach(r => {
+    const date = toISODate(r['data']);
+    if (!date) return;
+    const b = ensure(r['WABA'], date);
+    if (b) b.chamados += 1;
+  });
+
+  ctx.rows(SHEETS.CONEXAO).forEach(r => {
+    const date = toISODate(r['criado_em'] || r['dia_de_conexao']);
+    if (!date || date < WABA_CONEXAO_LINK_MIN_DATE) return;
+    const b = ensure(r['WABA'], date);
+    if (b) b.conectados += 1;
+  });
+
+  linksDeduplicados(ctx).forEach(r => {
+    const date = toISODate(r['dia_de_link']);
+    if (!date || date < WABA_CONEXAO_LINK_MIN_DATE) return;
+    const b = ensure(r['WABA'], date);
+    if (b) b.links += 1;
+  });
+
+  ctx.rows(SHEETS.CUSTOS).forEach(r => {
+    if (String(r['Categoria'] || '').trim() !== 'Templates da Meta') return;
+    const date = toISODate(r['Data']);
+    if (!date) return;
+    const b = ensure(r['WABA'], date);
+    if (!b) return;
+    b.enviadas  += toNumber(r['Enviados']);
+    b.entregues += toNumber(r['Entregues']);
+  });
+
+  const out = {};
+  Object.keys(buckets).forEach(valor => {
+    out[valor] = Object.keys(buckets[valor]).sort().map(date => {
+      const b = buckets[valor][date];
+      return {
+        date,
+        chamados: b.chamados, conectados: b.conectados, links: b.links,
+        vendas: null,
+        enviadas: b.enviadas, entregues: b.entregues, lidas: null,
+        erros: Math.max(0, b.chamados - b.entregues),
+      };
     });
   });
   return out;
