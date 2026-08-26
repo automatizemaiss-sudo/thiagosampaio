@@ -1141,6 +1141,30 @@ function fimCicloManutencao(inicioCiclo) {
   if (nm === 13) { nm = 1; ny += 1; }
   return `${ny}-${String(nm).padStart(2, '0')}-15`;
 }
+// Início do ciclo seguinte a um dado início de ciclo 'YYYY-MM-16'.
+function proximoCicloManutencao(inicioCiclo) {
+  const [y, m] = inicioCiclo.split('-').map(Number);
+  let ny = y, nm = m + 1;
+  if (nm === 13) { nm = 1; ny += 1; }
+  return `${ny}-${String(nm).padStart(2, '0')}-16`;
+}
+// Lista o início de cada ciclo de 16-15 que se sobrepõe ao intervalo
+// [from, to] (ambos obrigatórios — o seletor de datas sempre preenche
+// os dois). Usado pra saber quais ciclos precisam de rateio de
+// Manutenção, mesmo os que ainda não têm lançamento real (ciclo em
+// andamento) — ver computeRoiParaIntervalo().
+function ciclosNoIntervalo(from, to) {
+  if (!from || !to) return [];
+  const ciclos = [];
+  let ciclo = cicloDoPagamentoManutencao(from);
+  let guard = 0;
+  while (ciclo <= to && guard < 120) {
+    ciclos.push(ciclo);
+    ciclo = proximoCicloManutencao(ciclo);
+    guard++;
+  }
+  return ciclos;
+}
 // Dias corridos no mês civil 'YYYY-MM' (usa o truque do dia 0 do mês seguinte).
 function diasNoMesCivil(mes) {
   const [y, m] = mes.split('-').map(Number);
@@ -1192,18 +1216,35 @@ function computeRoiParaIntervalo(from, to) {
   // Rateio da Manutenção: soma o valor lançado por CICLO de cobrança
   // (16 a 15, não mês civil), divide pelos dias corridos daquele ciclo
   // e conta só os dias que o intervalo cobre.
+  //
+  // O ciclo em andamento (ex.: 16/08–15/09 enquanto ainda estamos em
+  // agosto) só tem o lançamento real no ciclo SEGUINTE (pago ~1 ciclo
+  // depois — ver inicioCicloManutencao()). Sem lançamento, o custo
+  // ainda assim EXISTE e está sendo acumulado — só não foi pago. Por
+  // isso, pra qualquer ciclo tocado pelo período que não tenha
+  // lançamento real, usamos o ÚLTIMO valor real conhecido como
+  // estimativa, e marcamos manutencaoEstimada=true pro front avisar.
   const manutencaoPorCiclo = {};
   custosData.forEach(c => {
     if (!isManutencao(String(c.categoria || '').trim().toLowerCase())) return;
     const ciclo = inicioCicloManutencao(c.date);
     manutencaoPorCiclo[ciclo] = (manutencaoPorCiclo[ciclo] || 0) + c.valor;
   });
+  const ciclosConhecidos = Object.keys(manutencaoPorCiclo).sort();
+  const valorPadraoManutencao = ciclosConhecidos.length
+    ? manutencaoPorCiclo[ciclosConhecidos[ciclosConhecidos.length - 1]]
+    : 0;
+
   let manutencaoPeriodo = 0;
-  Object.keys(manutencaoPorCiclo).forEach(ciclo => {
+  let manutencaoEstimada = false;
+  ciclosNoIntervalo(from, to).forEach(ciclo => {
     const fimCiclo = fimCicloManutencao(ciclo);
     const dias = contarDiasNoIntervalo(ciclo, fimCiclo, from, to);
     if (dias <= 0) return;
-    manutencaoPeriodo += (manutencaoPorCiclo[ciclo] / diasEntre(ciclo, fimCiclo)) * dias;
+    const temLancamento = ciclo in manutencaoPorCiclo;
+    const valorCiclo = temLancamento ? manutencaoPorCiclo[ciclo] : valorPadraoManutencao;
+    if (!temLancamento && valorCiclo > 0) manutencaoEstimada = true;
+    manutencaoPeriodo += (valorCiclo / diasEntre(ciclo, fimCiclo)) * dias;
   });
   cr += manutencaoPeriodo;
   porCategoria.salario += manutencaoPeriodo;
@@ -1231,6 +1272,7 @@ function computeRoiParaIntervalo(from, to) {
     custos_registrados: cr,
     custos_por_categoria: porCategoria,
     custo_total: ct,
+    manutencao_estimada: manutencaoEstimada,
     roi_multiplo:   ct > 0 ? fl / ct : null,
     roi_percentual: ct > 0 ? (fl - ct) / ct : null,
   };
@@ -1803,6 +1845,7 @@ function renderRoi(meses, agg) {
     <div class="card-label">Custo Total</div>
     <div class="card-value is-money-red" style="font-size:24px;">${hasCT ? fBRL(agg.custo_total) : '—'}</div>
     <div class="card-sub">Custos ${fBRL(agg.custos_registrados)} + Comissão ${fBRL(agg.comissao)}</div>
+    ${agg.manutencao_estimada ? `<span class="card-badge-inline pending">inclui Manutenção estimada (ciclo em andamento)</span>` : ''}
   `;
   grid.appendChild(ctEl);
 
@@ -1900,7 +1943,7 @@ function renderRoi(meses, agg) {
       <td style="text-align:right;">${fBRL(m.faturamento_liquido)}</td>
       <td>${m.faixa} · ${(m.percentual_comissao*100).toFixed(0)}%</td>
       <td style="text-align:right;" class="val-red">${fBRL(m.comissao)}${!m.comissao_lancada?' <span style="color:var(--amber);font-size:9px;">est.</span>':''}</td>
-      <td style="text-align:right;" class="val-red">${fBRL(m.custos_registrados)}</td>
+      <td style="text-align:right;" class="val-red">${fBRL(m.custos_registrados)}${m.manutencao_estimada?' <span style="color:var(--amber);font-size:9px;">est.</span>':''}</td>
       <td style="text-align:right;color:var(--accent);">${ctZero?'—':fBRL(m.custo_total)}</td>
       <td style="text-align:right;" class="${roiCls}">${roiTxt}</td>`;
     tbody.appendChild(tr);
