@@ -1108,15 +1108,31 @@ function contarDiasNoIntervalo(inicio, fim, from, to) {
 // O ciclo de cobrança da Manutenção NÃO é o mês civil (1º–último dia) —
 // roda do dia 16 de um mês ao dia 15 do mês seguinte (primeiro ciclo:
 // 16/07/2026–15/08/2026). Dado o "dia de lançamento" de uma linha de
-// custo, devolve o dia 16 que abre o ciclo em que essa data cai: se o
-// dia é >= 16, o ciclo abriu nesse mesmo mês; se é <= 15, abriu no mês
-// anterior.
-function inicioCicloManutencao(dateStr) {
+// custo, devolve o dia 16 que abre o ciclo EM QUE O PAGAMENTO CAI (não
+// o ciclo a que ele se refere — ver inicioCicloManutencao() abaixo):
+// se o dia é >= 16, o ciclo abriu nesse mesmo mês; se é <= 15, abriu
+// no mês anterior.
+function cicloDoPagamentoManutencao(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   if (d >= 16) return `${y}-${String(m).padStart(2, '0')}-16`;
   let py = y, pm = m - 1;
   if (pm === 0) { pm = 12; py -= 1; }
   return `${py}-${String(pm).padStart(2, '0')}-16`;
+}
+// Início do ciclo anterior a um dado início de ciclo 'YYYY-MM-16'.
+function cicloAnteriorManutencao(inicioCiclo) {
+  const [y, m] = inicioCiclo.split('-').map(Number);
+  let py = y, pm = m - 1;
+  if (pm === 0) { pm = 12; py -= 1; }
+  return `${py}-${String(pm).padStart(2, '0')}-16`;
+}
+// A Manutenção é paga com um ciclo de atraso — mesmo padrão da Comissão
+// (ver mesAnterior() em code.gs): um lançamento datado 17/08 é o
+// pagamento do ciclo 16/07–15/08, não do ciclo 16/08–15/09 em que a
+// data cai. Por isso o valor é atribuído ao ciclo ANTERIOR ao do
+// pagamento.
+function inicioCicloManutencao(dateStr) {
+  return cicloAnteriorManutencao(cicloDoPagamentoManutencao(dateStr));
 }
 // Fim do ciclo (dia 15 do mês seguinte ao início do ciclo).
 function fimCicloManutencao(inicioCiclo) {
