@@ -1059,21 +1059,38 @@ const ROI_CATEGORIA_BUCKET_FRONT = {
   'manutenção':          'salario',
   'manutencao':          'salario',
 };
-// Dias corridos no mês 'YYYY-MM' (usa o truque do dia 0 do mês seguinte).
-function diasNoMes(mes) {
-  const [y, m] = mes.split('-').map(Number);
-  return new Date(y, m, 0).getDate();
+// Conta dias corridos entre duas datas 'YYYY-MM-DD', inclusive nas pontas.
+function diasEntre(a, b) {
+  return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000) + 1;
 }
-// Quantos dias do mês 'YYYY-MM' caem dentro do período [from, to] (strings
-// 'YYYY-MM-DD', vazio = sem limite). Usado pra ratear custo fixo mensal.
-function contarDiasNoPeriodo(mes, from, to) {
-  const diasMes  = diasNoMes(mes);
-  const inicioMes = mes + '-01';
-  const fimMes    = mes + '-' + String(diasMes).padStart(2, '0');
-  const ini = from && from > inicioMes ? from : inicioMes;
-  const fim = to   && to   < fimMes    ? to   : fimMes;
-  if (ini > fim) return 0;
-  return Math.round((new Date(fim + 'T00:00:00') - new Date(ini + 'T00:00:00')) / 86400000) + 1;
+// Quantos dias do intervalo [inicio, fim] (strings 'YYYY-MM-DD') caem
+// dentro do período [from, to] selecionado no dashboard (vazio = sem
+// limite). Usado pra ratear custo fixo por ciclo de cobrança.
+function contarDiasNoIntervalo(inicio, fim, from, to) {
+  const ini = from && from > inicio ? from : inicio;
+  const f   = to   && to   < fim    ? to   : fim;
+  if (ini > f) return 0;
+  return diasEntre(ini, f);
+}
+// O ciclo de cobrança da Manutenção NÃO é o mês civil (1º–último dia) —
+// roda do dia 16 de um mês ao dia 15 do mês seguinte (primeiro ciclo:
+// 16/07/2026–15/08/2026). Dado o "dia de lançamento" de uma linha de
+// custo, devolve o dia 16 que abre o ciclo em que essa data cai: se o
+// dia é >= 16, o ciclo abriu nesse mesmo mês; se é <= 15, abriu no mês
+// anterior.
+function inicioCicloManutencao(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (d >= 16) return `${y}-${String(m).padStart(2, '0')}-16`;
+  let py = y, pm = m - 1;
+  if (pm === 0) { pm = 12; py -= 1; }
+  return `${py}-${String(pm).padStart(2, '0')}-16`;
+}
+// Fim do ciclo (dia 15 do mês seguinte ao início do ciclo).
+function fimCicloManutencao(inicioCiclo) {
+  const [y, m] = inicioCiclo.split('-').map(Number);
+  let ny = y, nm = m + 1;
+  if (nm === 13) { nm = 1; ny += 1; }
+  return `${ny}-${String(nm).padStart(2, '0')}-15`;
 }
 // "Período selecionado" calculado pelo intervalo de DIAS exato (igual às
 // outras abas), não pelo mês fechado — diferente da tabela/gráficos
@@ -1119,19 +1136,21 @@ function aggregatePeriodoRoi() {
     porCategoria[bucket] += c.valor;
   });
 
-  // Rateio da Manutenção: soma o valor lançado por mês, divide pelos dias
-  // corridos daquele mês e conta só os dias que o período cobre.
-  const manutencaoPorMes = {};
+  // Rateio da Manutenção: soma o valor lançado por CICLO de cobrança
+  // (16 a 15, não mês civil), divide pelos dias corridos daquele ciclo
+  // e conta só os dias que o período selecionado cobre.
+  const manutencaoPorCiclo = {};
   custosData.forEach(c => {
     if (!isManutencao(String(c.categoria || '').trim().toLowerCase())) return;
-    const mes = c.date.slice(0, 7);
-    manutencaoPorMes[mes] = (manutencaoPorMes[mes] || 0) + c.valor;
+    const ciclo = inicioCicloManutencao(c.date);
+    manutencaoPorCiclo[ciclo] = (manutencaoPorCiclo[ciclo] || 0) + c.valor;
   });
   let manutencaoPeriodo = 0;
-  Object.keys(manutencaoPorMes).forEach(mes => {
-    const dias = contarDiasNoPeriodo(mes, from, to);
+  Object.keys(manutencaoPorCiclo).forEach(ciclo => {
+    const fimCiclo = fimCicloManutencao(ciclo);
+    const dias = contarDiasNoIntervalo(ciclo, fimCiclo, from, to);
     if (dias <= 0) return;
-    manutencaoPeriodo += (manutencaoPorMes[mes] / diasNoMes(mes)) * dias;
+    manutencaoPeriodo += (manutencaoPorCiclo[ciclo] / diasEntre(ciclo, fimCiclo)) * dias;
   });
   cr += manutencaoPeriodo;
   porCategoria.salario += manutencaoPeriodo;
