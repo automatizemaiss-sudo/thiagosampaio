@@ -388,6 +388,63 @@
   /* ── FOLLOW-UPS PAGE ── */
   #followupsPage { display: none; }
   #followupsPage.visible { display: flex; flex-direction: column; gap: 26px; }
+  /* ── FUNIL CLARA PAGE (r2 — Supabase) ── */
+  #funilclaraPage { display: none; }
+  #funilclaraPage.visible { display: flex; flex-direction: column; gap: 18px; }
+  .cf-topline {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-family: 'Outfit', sans-serif; font-size: 14px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 18px;
+  }
+  .cf-topline b { color: var(--accent); font-family: 'Libre Baskerville', serif; }
+  .cf-period-note { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+  .cf-funnel { display: flex; flex-direction: column; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+  .cf-qualif-box { border: 1px dashed var(--border-accent); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 14px; background: rgba(196,169,106,0.03); }
+  .cf-qualif-lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; }
+  .cf-bar-row { display: flex; flex-direction: column; gap: 5px; }
+  .cf-bar-row.cf-bottleneck { background: rgba(192,57,43,0.06); border: 1px solid rgba(192,57,43,0.3); border-radius: 10px; padding: 8px 10px; }
+  .cf-bar-hdr { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .cf-bar-label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cf-bar-n {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--surface3);
+    color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .cf-bar-nome { font-size: 13px; font-weight: 600; color: var(--text); }
+  .cf-gargalo-badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 1px;
+    background: rgba(192,57,43,0.18); color: #ff8a7a; border: 1px solid rgba(192,57,43,0.4);
+    border-radius: 20px; padding: 2px 8px;
+  }
+  .cf-bar-stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+  .cf-bar-stats b { color: var(--text); font-family: 'Outfit', sans-serif; }
+  .cf-bar-wa { color: var(--text-muted); }
+  .cf-bar-track { position: relative; height: 14px; background: var(--surface2); border-radius: 7px; overflow: hidden; }
+  .cf-bar-track-sub { height: 6px; margin-top: -1px; opacity: 0.85; }
+  .cf-bar-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0%; border-radius: 7px; transition: width 0.5s cubic-bezier(.34,1.56,.64,1); }
+  .cf-fill-alc { background: var(--accent); }
+  .cf-fill-trav { background: var(--danger); }
+  .cf-lead-panel { display: none; }
+  .cf-lead-panel.open { display: block; margin-top: 6px; }
+  .cf-lead-list { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--surface2); }
+  .cf-lead-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; font-size: 12px; flex-wrap: wrap; }
+  .cf-lead-row:hover { background: var(--surface3); }
+  .cf-lead-name { color: var(--text); font-weight: 500; flex: 1; min-width: 100px; }
+  .cf-lead-fone { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .cf-lead-badge { font-size: 9px; }
+  .cf-chat-link { font-size: 11px; color: var(--accent); text-decoration: none; font-family: 'JetBrains Mono', monospace; }
+  .cf-chat-link:hover { text-decoration: underline; }
+  .cf-chat-link.disabled { color: var(--text-muted); font-style: italic; }
+  .cf-guia-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .cf-guia-title { font-family: 'Libre Baskerville', serif; font-weight: 700; font-style: italic; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cf-guia-sub { font-family: 'Outfit', sans-serif; font-style: normal; font-size: 11px; color: var(--text-muted); font-weight: 400; }
+  .cf-guia-warn { font-size: 12px; color: var(--amber); font-family: 'JetBrains Mono', monospace; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); border-radius: 8px; padding: 8px 12px; }
+  .cf-etapa-select {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 6px 10px; outline: none; cursor: pointer;
+  }
+  .cf-etapa-select:focus { border-color: var(--accent); }
   /* ── TOAST ── */
   .toast {
     position: fixed; bottom: 28px; right: 28px; z-index: 2000;
@@ -460,6 +517,7 @@
   <button class="main-tab" data-page="custos">💸 CUSTOS</button>
   <button class="main-tab" data-page="followups">🔁 FOLLOW-UPS</button>
   <button class="main-tab" data-page="roi">🎯 ROI</button>
+  <button class="main-tab" data-page="funilclara">🔻 FUNIL CLARA</button>
 </div>
 <!-- ── MÉTRICAS CONTROLS ── -->
 <div id="metricasControls">
@@ -649,6 +707,30 @@
       </table>
     </div>
   </div>
+  <!-- ══ FUNIL CLARA PAGE (r2 — dados vêm direto do Supabase) ══ -->
+  <div id="funilclaraPage">
+    <div class="cf-topline" id="cfTopline">Carregando…</div>
+    <div class="seg-tabs" id="cfOrigemTabs">
+      <button class="seg-tab active" data-origem="principal">PRINCIPAL</button>
+      <button class="seg-tab" data-origem="presente_gratuito">PRESENTE GRATUITO</button>
+      <button class="seg-tab" data-origem="sem_interesse">SEM INTERESSE</button>
+    </div>
+    <div id="cfFunnelBody"><div class="empty-state">Carregando funil...</div></div>
+    <div id="cfSemInteresseBody" style="display:none;flex-direction:column;gap:10px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div class="cards-section-label" id="cfSemInteresseCount">SEM INTERESSE</div>
+        <div class="search-wrap">
+          <input class="search-input" id="cfSemInteresseSearch" type="text" placeholder="Buscar por nome ou número..."/>
+        </div>
+      </div>
+      <div class="transf-table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Nome</th><th>Telefone</th></tr></thead>
+          <tbody id="cfSemInteresseTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </main>
 <script>
 // ════════════════════════════════════════════
@@ -658,6 +740,68 @@
 // gerado a partir do arquivo Code.gs fornecido junto com este dashboard,
 // vinculado à planilha "dados_performance_automacao_tsnutri".
 const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxVjWmznwN1lAofCfVI-2uCLwxqG7gQECv-7qHT3VzzkP0tZYFX_2bg0dZah0QKmDo/exec';
+// ════════════════════════════════════════════
+// FUNIL CLARA (r2) — lido direto do Supabase, sem passar pelo Apps Script.
+// ⚠️ Chave anon já é pública hoje (embutida no restante do projeto n8n/dashboard)
+// e, no banco atual, tem SELECT liberado nas tabelas abaixo — ver aviso no
+// final deste arquivo sobre travar os privilégios dela nas demais tabelas.
+//
+// NÃO lê das views vw_funil_diario_r2 / vw_funil_guia_diario_r2 /
+// vw_clara_etapas_r2 diretamente: elas recalculam por cima da tabela
+// inteira de mensagens a cada chamada (~8-10s) e o role "anon" usado pelo
+// REST tem statement_timeout de 3s — toda chamada dava HTTP 500. Em vez
+// disso, lê de 3 tabelas-cache (clara_funil_diario, clara_funil_guia_diario,
+// clara_etapas_cache) que um workflow agendado no n8n ("Funil Clara r2 —
+// refresh do cache", a cada 15min) repopula a partir dessas mesmas views,
+// usando a credencial Postgres direta do n8n (sem o limite de 3s do REST).
+// ════════════════════════════════════════════
+const SUPABASE_URL      = 'https://icauzaqdpxfaockysbss.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljYXV6YXFkcHhmYW9ja3lzYnNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2OTA2NTksImV4cCI6MjA4MDI2NjY1OX0.xrkpY27EybyudiEUkQq0MQ6qy1HOKQt1g3fO6X2fhkU';
+// Antes disso o created_at do histórico de conversas não é confiável (ver
+// BRIEF_FUNIL_R2.md) — qualquer período pedido é grudado nesse piso.
+const CLARA_MIN_DATE = '2026-08-27';
+// Marca literal de cada etapa (usada nos "?" e no rótulo de cada barra).
+const CF_ETAPAS = [
+  { n:0, nome:'Respondeu, não qualificou',    regra:'o lead respondeu e nenhuma marca abaixo apareceu' },
+  { n:1, nome:'Qualificação · diagnóstico',   regra:'a Clara escreveu "prevenir" e "diabetes tipo 2" ou "pré-diabetes"' },
+  { n:2, nome:'Qualificação · exames',        regra:'"exames recentes", ou "glicemia de jejum"/"hemoglobina glicada" dentro de uma pergunta, antes da explicação do CDA' },
+  { n:3, nome:'Qualificação · sintomas',      regra:'"sente"/"sentido"/"tem tido"/"têm sido"/"apresenta" … "sintoma(s)" … "?", antes da explicação do CDA' },
+  { n:4, nome:'Pergunta principal (dor)',     regra:'"o que mais te preocupa hoje"' },
+  { n:5, nome:'Ponte para o CDA',             regra:'"pode te ajudar" junto de "estratégia"' },
+  { n:6, nome:'Explicação do CDA',            regra:'"plano alimentar"' },
+  { n:7, nome:'Oferta da CDA',                regra:'"41,06" ou "R$ 397"' },
+  { n:8, nome:'Link de pagamento da CDA',     regra:'a URL thiagosampaionutricao.com/pay, ou o evento link_enviado' },
+  { n:9, nome:'Venda',                        regra:'o telefone estar presente na clara_vendas' },
+];
+const CF_GENERAL_TOOLTIP = 'O número é contado direto das mensagens do WhatsApp gravadas no banco, sem IA no meio. A etapa de uma conversa é a mais avançada que ela alcançou (não a última mensagem). "Travou" quer dizer 24h sem mensagem nova e sem venda.';
+function cfEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function cfFone(v) {
+  const s = String(v || '').replace(/\D/g, '');
+  if (s.length === 11) return `(${s.slice(0,2)}) ${s.slice(2,7)}-${s.slice(7)}`;
+  if (s.length === 10) return `(${s.slice(0,2)}) ${s.slice(2,6)}-${s.slice(6)}`;
+  return s || '—';
+}
+// PostgREST pagina em blocos de 1000 por padrão — sem isso, qualquer
+// intervalo com mais de 1000 linhas (ex.: histórico completo desde 26/08)
+// voltaria truncado silenciosamente.
+async function sbFetch(pathAndQuery) {
+  const rows = [];
+  const pageSize = 1000;
+  let offset = 0;
+  for (;;) {
+    const sep = pathAndQuery.includes('?') ? '&' : '?';
+    const url = `${SUPABASE_URL}/rest/v1/${pathAndQuery}${sep}offset=${offset}&limit=${pageSize}`;
+    const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+    if (!res.ok) throw new Error('Supabase HTTP ' + res.status);
+    const page = await res.json();
+    rows.push(...page);
+    if (page.length < pageSize) break;
+    offset += pageSize;
+  }
+  return rows;
+}
 // ════════════════════════════════════════════
 // CONFIG DE ABAS — mude para true/false para mostrar/esconder cada aba
 // principal do dashboard, sem precisar mexer em mais nada.
@@ -669,6 +813,7 @@ const TABS_CONFIG = {
   custos:          true,
   followups:       true,
   roi:             true,
+  funilclara:      true,
 };
 // ════════════════════════════════════════════
 // STATE
@@ -695,6 +840,17 @@ let funilChart   = null;
 let custosChart  = null;
 let roiChart     = null;
 let roiCostChart = null;
+// Estado da aba Funil Clara (r2) — dados vêm direto do Supabase, não da planilha.
+let cfDiario       = [];   // linhas de vw_funil_diario_r2 no intervalo carregado
+let cfGuia         = [];   // linhas de vw_funil_guia_diario_r2 no intervalo carregado
+let cfRangeKey     = '';   // `${from}|${to}` já carregado, evita refetch ao só trocar de origem
+let cfRangeFrom    = '';
+let cfRangeTo      = '';
+let cfClamped      = false;
+let cfOrigem       = 'principal';
+let cfLeadsCache   = {};
+let cfSemInteresseRows = [];
+let cfChart        = null;
 // Paleta de cores para categorias de custo
 const CAT_COLORS = ['#C4A96A','#60a5fa','#f59e0b','#a78bfa','#34d399','#fb923c','#f472b6'];
 const catColorMap = {};
@@ -2107,6 +2263,7 @@ function refreshAll() {
   else if (activePage === 'custos')         refreshCustos();
   else if (activePage === 'followups')      refreshFollowups();
   else if (activePage === 'roi')            refreshRoi();
+  else if (activePage === 'funilclara')     refreshFunilClara();
 }
 function switchView(mode) {
   viewMode = mode;
@@ -2116,7 +2273,7 @@ function switchView(mode) {
 }
 function switchPage(page) {
   activePage = page;
-  const pages = ['metricas','vendas','transferencias','custos','followups','roi'];
+  const pages = ['metricas','vendas','transferencias','custos','followups','roi','funilclara'];
   pages.forEach(p => {
     const el = document.getElementById(p === 'metricas' ? 'metricasPage' : p+'Page');
     if (p === 'metricas') el.style.display = page === 'metricas' ? '' : 'none';
@@ -2125,6 +2282,251 @@ function switchPage(page) {
   document.getElementById('metricasControls').style.display  = page==='metricas' ? '' : 'none';
   document.querySelectorAll('.main-tab').forEach(t => t.classList.toggle('active', t.dataset.page===page));
   refreshAll();
+}
+// ════════════════════════════════════════════
+// FUNIL CLARA (r2)
+// ════════════════════════════════════════════
+// Soma, por etapa (0–9), as linhas diárias de vw_funil_diario_r2 já filtradas
+// pela origem escolhida. "alcancaram" na view já vem CUMULATIVO (quem chegou
+// naquela etapa ou além) e "travaram" já vem EXATO daquela etapa (24h sem
+// mensagem, sem venda) — a view faz a conta, aqui só se soma o período.
+function cfAggEtapas(origem) {
+  const per = {};
+  for (let e = 0; e <= 9; e++) per[e] = { alc: 0, trav: 0, wsum: 0 };
+  cfDiario.forEach(r => {
+    if (r.origem !== origem || !(r.etapa in per)) return;
+    const alc = Number(r.alcancaram) || 0;
+    per[r.etapa].alc  += alc;
+    per[r.etapa].trav += Number(r.travaram) || 0;
+    per[r.etapa].wsum += (Number(r.media_msgs) || 0) * alc;
+  });
+  return per;
+}
+function cfRenderBar(e, per, isBottleneck) {
+  const info = CF_ETAPAS[e];
+  const cur  = per[e];
+  const nxt  = per[e + 1];
+  const baseline = per[0].alc || 1;
+  const alc = cur.alc, trav = cur.trav;
+  const mediaWa   = alc > 0 ? cur.wsum / alc : null;
+  const passagem  = (nxt && alc > 0) ? (nxt.alc / alc * 100) : null;
+  // Regra "nenhum recorte com menos de 5 conversas é exibido": mascara o
+  // número exato e desativa o drill-down pra não expor um punhado de pessoas.
+  const alcTxt  = (alc > 0 && alc < 5)  ? '< 5' : alc.toLocaleString('pt-BR');
+  const travTxt = (trav > 0 && trav < 5) ? '< 5' : trav.toLocaleString('pt-BR');
+  const widthAlc  = Math.min(100, alc  / baseline * 100);
+  const widthTrav = Math.min(100, trav / baseline * 100);
+  const clickable = alc >= 5;
+  return `
+  <div class="cf-bar-row ${isBottleneck ? 'cf-bottleneck' : ''}">
+    <div class="cf-bar-hdr" ${clickable ? `onclick="cfToggleLeads(${e})" style="cursor:pointer;"` : ''}>
+      <div class="cf-bar-label">
+        <span class="cf-bar-n">${e}</span>
+        <span class="cf-bar-nome">${cfEsc(info.nome)}</span>
+        <div class="info-wrap"><span class="info-btn">?</span><div class="info-tooltip"><strong>Etapa ${e}</strong>Conta quando ${cfEsc(info.regra)}.</div></div>
+        ${isBottleneck ? '<span class="cf-gargalo-badge">GARGALO</span>' : ''}
+      </div>
+      <div class="cf-bar-stats">
+        <span>Alcançaram <b>${alcTxt}</b></span>
+        <span style="color:var(--danger)">Travaram <b>${travTxt}</b></span>
+        ${passagem !== null ? `<span>Passagem <b style="${isBottleneck?'color:#ff8a7a;':''}">${passagem.toFixed(0)}%</b></span>` : ''}
+        ${mediaWa !== null ? `<span class="cf-bar-wa">${mediaWa.toFixed(1)} msgs WhatsApp</span>` : ''}
+      </div>
+    </div>
+    <div class="cf-bar-track"><div class="cf-bar-fill cf-fill-alc" style="width:${widthAlc}%"></div></div>
+    <div class="cf-bar-track cf-bar-track-sub"><div class="cf-bar-fill cf-fill-trav" style="width:${widthTrav}%"></div></div>
+    <div class="cf-lead-panel" id="cfLeads_${e}"></div>
+  </div>`;
+}
+function cfRenderGuia(origem) {
+  let of = 0, lk = 0, vd = 0, semVer = 0;
+  cfGuia.forEach(r => {
+    if (r.origem !== origem) return;
+    of     += Number(r.ofertaram_guia) || 0;
+    lk     += Number(r.link_guia) || 0;
+    vd     += Number(r.venderam_guia) || 0;
+    semVer += Number(r.guia_sem_ver_preco_cda) || 0;
+  });
+  const titleHtml = `<div class="cf-guia-title">FUNIL DO GUIA NUTRICIONAL <span class="cf-guia-sub">degrau de fechamento pendurado na etapa 7, não é um funil paralelo</span>
+    <div class="info-wrap"><span class="info-btn">?</span><div class="info-tooltip" style="width:260px;">O Guia só existe depois que a CDA foi apresentada e recusada. Uma conversa pode aparecer nos dois funis ao mesmo tempo — isso é esperado.</div></div>
+  </div>`;
+  if (of < 5) {
+    return `<div class="cf-guia-panel">${titleHtml}<div class="empty-state">Poucos dados neste recorte (menos de 5 ofertas do Guia no período).</div></div>`;
+  }
+  const steps = [ ['Ofertaram o Guia', of], ['Link do Guia', lk], ['Venda do Guia', vd] ];
+  const rows = steps.map(([label, val]) => {
+    const width = Math.min(100, val / of * 100);
+    const pct = (val / of * 100).toFixed(0) + '%';
+    return `<div class="cf-bar-row">
+      <div class="cf-bar-hdr"><div class="cf-bar-label"><span class="cf-bar-nome">${label}</span></div>
+        <div class="cf-bar-stats"><span><b>${val.toLocaleString('pt-BR')}</b></span><span>${pct}</span></div></div>
+      <div class="cf-bar-track"><div class="cf-bar-fill cf-fill-alc" style="width:${width}%"></div></div>
+    </div>`;
+  }).join('');
+  const warn = semVer > 0
+    ? `⚠️ ${semVer.toLocaleString('pt-BR')} dessas ofertas foram feitas pra leads que nunca viram o preço da CDA (viola a Regra Inviolável 19 do prompt).`
+    : 'Nenhuma oferta do Guia foi feita sem o lead antes ver o preço da CDA.';
+  return `<div class="cf-guia-panel">${titleHtml}${rows}<div class="cf-guia-warn">${warn}</div></div>`;
+}
+function cfRenderChartShell() {
+  return `
+  <div class="chart-panel">
+    <div class="chart-header">
+      <div class="chart-title">EVOLUÇÃO DIÁRIA POR ETAPA</div>
+      <select id="cfEtapaSelect" class="cf-etapa-select"></select>
+    </div>
+    <div class="chart-body"><canvas id="cfLineChart"></canvas></div>
+  </div>`;
+}
+function cfDrawChart(origem, etapa) {
+  const rows = cfDiario.filter(r => r.origem === origem && r.etapa === etapa).sort((a, b) => a.dia.localeCompare(b.dia));
+  const labels  = rows.map(r => fD(r.dia));
+  const alcData = rows.map(r => Number(r.alcancaram) || 0);
+  const travData= rows.map(r => Number(r.travaram) || 0);
+  if (cfChart) cfChart.destroy();
+  cfChart = new Chart(document.getElementById('cfLineChart').getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Alcançaram', data: alcData, borderColor: '#C4A96A', backgroundColor: '#C4A96A22', borderWidth: 2, tension: 0.3, pointRadius: rows.length > 40 ? 0 : 3, pointHoverRadius: 5 },
+      { label: 'Travaram',   data: travData, borderColor: '#C0392B', backgroundColor: '#C0392B22', borderWidth: 2, tension: 0.3, pointRadius: rows.length > 40 ? 0 : 3, pointHoverRadius: 5 },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: true, position: 'bottom', labels: { color: '#9FB3A4', font: { family: 'JetBrains Mono', size: 10 }, boxWidth: 10, padding: 12 } },
+        tooltip: { backgroundColor: '#17231C', borderColor: '#33453A', borderWidth: 1, titleColor: '#EDE8D8', bodyColor: '#B7C2B9', padding: 12 } },
+      scales: {
+        x: { ticks: { color: '#5C6B61', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { beginAtZero: true, ticks: { color: '#9FB3A4', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+      },
+    },
+  });
+}
+async function cfToggleLeads(etapa) {
+  const panel = document.getElementById('cfLeads_' + etapa);
+  if (!panel) return;
+  const wasOpen = panel.classList.contains('open');
+  document.querySelectorAll('.cf-lead-panel.open').forEach(p => p.classList.remove('open'));
+  if (wasOpen) return;
+  panel.classList.add('open');
+  panel.innerHTML = '<div class="empty-state">Carregando leads...</div>';
+  const cacheKey = `${cfOrigem}|${etapa}|${cfRangeFrom}|${cfRangeTo}`;
+  try {
+    let rows = cfLeadsCache[cacheKey];
+    if (!rows) {
+      const filtroEtapa = etapa === 9 ? 'vendeu=eq.true' : `etapa_max=eq.${etapa}`;
+      rows = await sbFetch(`clara_etapas_cache?select=telefone_chave,nome,url_chatwoot,parada,vendeu&origem=eq.${cfOrigem}&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}&${filtroEtapa}&order=ultima_msg.desc`);
+      cfLeadsCache[cacheKey] = rows;
+    }
+    if (!rows.length) { panel.innerHTML = '<div class="empty-state">Nenhum lead encontrado.</div>'; return; }
+    panel.innerHTML = `<div class="cf-lead-list">${rows.map(r => {
+      const nome = r.nome && r.nome.trim() ? r.nome.trim() : 'Sem nome';
+      const badge = etapa === 9 ? '' : (r.parada
+        ? '<span class="bool-badge nao cf-lead-badge">travou</span>'
+        : '<span class="bool-badge sim cf-lead-badge">em andamento</span>');
+      const link = r.url_chatwoot
+        ? `<a href="${cfEsc(r.url_chatwoot)}" target="_blank" rel="noopener" class="cf-chat-link">Chatwoot ↗</a>`
+        : `<span class="cf-chat-link disabled">sem link</span>`;
+      return `<div class="cf-lead-row"><span class="cf-lead-name">${cfEsc(nome)}</span><span class="cf-lead-fone">${cfEsc(cfFone(r.telefone_chave))}</span>${badge}${link}</div>`;
+    }).join('')}</div>`;
+  } catch (e) {
+    panel.innerHTML = `<div class="empty-state">Erro ao carregar leads: ${cfEsc(e.message)}</div>`;
+  }
+}
+function cfDrawSemInteresseTable(search) {
+  const q = (search || '').toLowerCase();
+  const rows = cfSemInteresseRows.filter(r => !q || (r.nome || '').toLowerCase().includes(q) || String(r.telefone_chave || '').includes(q));
+  document.getElementById('cfSemInteresseCount').textContent = `${cfSemInteresseRows.length.toLocaleString('pt-BR')} CONTATO(S) SEM INTERESSE`;
+  document.getElementById('cfSemInteresseTbody').innerHTML = rows.length
+    ? rows.map(r => `<tr><td>${fD(r.dia)}</td><td>${cfEsc(r.nome || '—')}</td><td>${cfEsc(cfFone(r.telefone_chave))}</td></tr>`).join('')
+    : `<tr><td colspan="3" class="empty-state">Nenhum resultado.</td></tr>`;
+}
+async function cfRenderSemInteresse() {
+  document.getElementById('cfFunnelBody').style.display = 'none';
+  document.getElementById('cfSemInteresseBody').style.display = 'flex';
+  const cacheKey = `sem_interesse|${cfRangeFrom}|${cfRangeTo}`;
+  if (cfLeadsCache[cacheKey]) {
+    cfSemInteresseRows = cfLeadsCache[cacheKey];
+    cfDrawSemInteresseTable(document.getElementById('cfSemInteresseSearch').value);
+    return;
+  }
+  document.getElementById('cfSemInteresseTbody').innerHTML = '<tr><td colspan="3" class="empty-state">Carregando...</td></tr>';
+  try {
+    const rows = await sbFetch(`clara_etapas_cache?select=telefone_chave,nome,dia&origem=eq.sem_interesse&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}&order=dia.desc`);
+    cfLeadsCache[cacheKey] = rows;
+    cfSemInteresseRows = rows;
+    cfDrawSemInteresseTable(document.getElementById('cfSemInteresseSearch').value);
+  } catch (e) {
+    document.getElementById('cfSemInteresseTbody').innerHTML = `<tr><td colspan="3" class="empty-state">Erro ao carregar: ${cfEsc(e.message)}</td></tr>`;
+  }
+}
+function cfRenderBody() {
+  const per = cfAggEtapas(cfOrigem);
+  const total = per[0].alc;
+  document.getElementById('cfTopline').innerHTML = `
+    Responderam: <b>${total.toLocaleString('pt-BR')}</b>
+    <span class="cf-period-note">— período: ${fD(cfRangeFrom)} a ${fD(cfRangeTo)}, pela data em que a conversa começou${cfClamped ? ' · ajustado: sem dados confiáveis antes de 27/08/2026' : ''}</span>
+    <div class="info-wrap"><span class="info-btn">?</span><div class="info-tooltip" style="width:280px;">${CF_GENERAL_TOOLTIP}</div></div>
+  `;
+  if (cfOrigem === 'sem_interesse') {
+    cfRenderSemInteresse();
+    return;
+  }
+  document.getElementById('cfSemInteresseBody').style.display = 'none';
+  const body = document.getElementById('cfFunnelBody');
+  body.style.display = '';
+  if (total < 5) {
+    body.innerHTML = '<div class="empty-state">Poucos dados neste recorte (menos de 5 conversas no período) — nada é exibido pra não distorcer a leitura.</div>';
+    return;
+  }
+  // Só considera até a transição 7→8 (chegar ao link). A transição 8→9
+  // (link → venda) fica de fora: com clara_vendas ainda vazia (ver doc,
+  // seção 8), ela é sempre 0% e marcaria "gargalo" ali pra sempre, escondendo
+  // o gargalo real da conversa (a oferta).
+  let bnIdx = -1, bnVal = Infinity;
+  for (let e = 0; e <= 7; e++) {
+    const cur = per[e], nxt = per[e + 1];
+    if (cur.alc < 5) continue;
+    const p = nxt.alc / cur.alc;
+    if (p < bnVal) { bnVal = p; bnIdx = e; }
+  }
+  let html = '<div class="cf-funnel">';
+  for (let e = 0; e <= 9; e++) {
+    if (e === 1) html += '<div class="cf-qualif-box"><div class="cf-qualif-lbl">Qualificação</div>';
+    html += cfRenderBar(e, per, e === bnIdx);
+    if (e === 3) html += '</div>';
+  }
+  html += '</div>';
+  body.innerHTML = html + cfRenderGuia(cfOrigem) + cfRenderChartShell();
+  const defaultEtapa = bnIdx >= 0 ? bnIdx : 7;
+  const sel = document.getElementById('cfEtapaSelect');
+  sel.innerHTML = CF_ETAPAS.map(info => `<option value="${info.n}">${info.n} · ${cfEsc(info.nome)}</option>`).join('');
+  sel.value = String(defaultEtapa);
+  sel.addEventListener('change', () => cfDrawChart(cfOrigem, Number(sel.value)));
+  cfDrawChart(cfOrigem, defaultEtapa);
+}
+async function refreshFunilClara() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  cfClamped  = !!from && from < CLARA_MIN_DATE;
+  cfRangeFrom = cfClamped ? CLARA_MIN_DATE : (from || CLARA_MIN_DATE);
+  cfRangeTo   = (to && to >= cfRangeFrom) ? to : cfRangeFrom;
+  const rangeKey = cfRangeFrom + '|' + cfRangeTo;
+  if (cfRangeKey !== rangeKey) {
+    document.getElementById('cfTopline').textContent = 'Carregando…';
+    document.getElementById('cfFunnelBody').innerHTML = '<div class="empty-state">Carregando funil...</div>';
+    try {
+      const [diario, guia] = await Promise.all([
+        sbFetch(`clara_funil_diario?select=*&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}`),
+        sbFetch(`clara_funil_guia_diario?select=*&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}`),
+      ]);
+      cfDiario = diario; cfGuia = guia; cfRangeKey = rangeKey; cfLeadsCache = {};
+    } catch (e) {
+      document.getElementById('cfFunnelBody').innerHTML = `<div class="empty-state">Erro ao carregar o funil do Supabase.<br>${cfEsc(e.message)}</div>`;
+      return;
+    }
+  }
+  cfRenderBody();
 }
 // ════════════════════════════════════════════
 // INIT
@@ -2177,6 +2579,17 @@ async function init() {
   });
   document.getElementById('followupsSearch').addEventListener('input', () => {
     if (activePage === 'followups') refreshFollowups();
+  });
+  document.querySelectorAll('#cfOrigemTabs .seg-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#cfOrigemTabs .seg-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      cfOrigem = btn.dataset.origem;
+      cfRenderBody();
+    });
+  });
+  document.getElementById('cfSemInteresseSearch').addEventListener('input', (ev) => {
+    if (activePage === 'funilclara') cfDrawSemInteresseTable(ev.target.value);
   });
   refreshMetricas();
 }
