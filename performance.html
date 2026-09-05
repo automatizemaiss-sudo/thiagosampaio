@@ -762,7 +762,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const CLARA_MIN_DATE = '2026-08-27';
 // Marca literal de cada etapa (usada nos "?" e no rótulo de cada barra).
 const CF_ETAPAS = [
-  { n:0, nome:'Respondeu, não qualificou',    regra:'o lead respondeu e nenhuma marca abaixo apareceu' },
+  { n:0, nome:'Respondeu ao Template',        regra:'o lead respondeu e nenhuma marca abaixo apareceu' },
   { n:1, nome:'Qualificação · diagnóstico',   regra:'a Clara escreveu "prevenir" e "diabetes tipo 2" ou "pré-diabetes"' },
   { n:2, nome:'Qualificação · exames',        regra:'"exames recentes", ou "glicemia de jejum"/"hemoglobina glicada" dentro de uma pergunta, antes da explicação do CDA' },
   { n:3, nome:'Qualificação · sintomas',      regra:'"sente"/"sentido"/"tem tido"/"têm sido"/"apresenta" … "sintoma(s)" … "?", antes da explicação do CDA' },
