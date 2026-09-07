@@ -445,6 +445,39 @@
     font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 6px 10px; outline: none; cursor: pointer;
   }
   .cf-etapa-select:focus { border-color: var(--accent); }
+
+  /* Commercial funnel: shared columns and accessible native disclosures. */
+  .cf-summary { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; margin-bottom:14px; }
+  .cf-summary-card { background:var(--surface); border:1px solid var(--border-accent); border-radius:12px; padding:20px; }
+  .cf-summary-card strong { display:block; font-size:32px; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .cf-summary-card strong.cf-unavailable { font-size:18px; overflow-wrap:anywhere; }
+  .cf-summary-card span { display:block; font-size:15px; color:#c1d0c6; margin-top:8px; }
+  .cf-note, .cf-help { color:#c1d0c6; font-size:14px; line-height:1.6; margin-bottom:16px; }
+  .cf-columns, .cf-funnel .cf-bar-hdr { display:grid; grid-template-columns:minmax(0,1fr) 110px 160px 120px; gap:16px; align-items:center; }
+  .cf-columns { color:#c1d0c6; font-size:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+  .cf-columns span:not(:first-child), .cf-stat { text-align:right; }
+  .cf-stat { font-size:18px; font-variant-numeric:tabular-nums; }
+  .cf-stat-label { display:none; }
+  .cf-funnel .cf-bar-row { padding:16px 0; gap:12px; border-bottom:1px solid var(--border); }
+  .cf-funnel .cf-bottleneck { padding:16px 0; border-left:0; border-right:0; }
+  .cf-bar-nome { font-size:16px; }
+  .cf-bar-n, .cf-gargalo-badge { font-size:12px; }
+  .cf-qualif-box { padding:0; border:0; background:transparent; }
+  .cf-details { font-size:14px; color:#c1d0c6; line-height:1.6; }
+  .cf-details summary, .cf-help summary { cursor:pointer; color:var(--accent); min-height:32px; padding:6px 0; }
+  .cf-details button { font:inherit; color:var(--accent); background:var(--surface2); border:1px solid var(--border-accent); padding:8px 12px; border-radius:8px; cursor:pointer; }
+  #funilclaraPage :focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+  @media(max-width:1000px) { .cf-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media(max-width:700px) {
+    .cf-columns { display:none; }
+    #cfOrigemTabs { flex-wrap:wrap; }
+    .cf-funnel { padding:14px; }
+    .cf-funnel .cf-bar-hdr { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .cf-funnel .cf-bar-label { grid-column:1/-1; }
+    .cf-stat { text-align:left; }
+    .cf-stat-label { display:block; font-size:12px; color:#c1d0c6; margin-bottom:4px; }
+  }
+  @media(max-width:380px) { .cf-summary { grid-template-columns:1fr; } }
   /* ── TOAST ── */
   .toast {
     position: fixed; bottom: 28px; right: 28px; z-index: 2000;
@@ -715,6 +748,7 @@
       <button class="seg-tab" data-origem="presente_gratuito">PRESENTE GRATUITO</button>
       <button class="seg-tab" data-origem="sem_interesse">SEM INTERESSE</button>
     </div>
+    <div id="cfSummary" aria-live="polite"></div>
     <div id="cfFunnelBody"><div class="empty-state">Carregando funil...</div></div>
     <div id="cfSemInteresseBody" style="display:none;flex-direction:column;gap:10px;">
       <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
@@ -773,7 +807,7 @@ const CF_ETAPAS = [
   { n:8, nome:'Link de pagamento da CDA',     regra:'a URL thiagosampaionutricao.com/pay, ou o evento link_enviado' },
   { n:9, nome:'Venda',                        regra:'o telefone estar presente na clara_vendas' },
 ];
-const CF_GENERAL_TOOLTIP = 'O número é contado direto das mensagens do WhatsApp gravadas no banco, sem IA no meio. A etapa de uma conversa é a mais avançada que ela alcançou (não a última mensagem). "Travou" quer dizer 24h sem mensagem nova e sem venda.';
+const CF_GENERAL_TOOLTIP = 'O número é contado direto das mensagens do WhatsApp gravadas no banco, sem IA no meio. A etapa de uma conversa é a mais avançada que ela alcançou (não a última mensagem). Os marcos são cumulativos e não devem ser somados.';
 function cfEsc(s) {
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -2302,41 +2336,138 @@ function cfAggEtapas(origem) {
   });
   return per;
 }
+// Legacy travaram/parada does not establish who owes a reply. Only consume
+// an explicit upstream count whose contract requires no person reply and >24h
+// since the LAST conversation message. Never infer it from funnel attrition.
+function cfNoReplyCount(origem, etapa) {
+  const rows = cfDiario.filter(r => r.origem === origem && Number(r.etapa) === etapa);
+  if (!rows.length || rows.some(r => !cfValidCount(r.sem_resposta_24h))) return null;
+  return rows.reduce((sum,r) => sum + Number(r.sem_resposta_24h), 0);
+}
+function cfValidCount(value) {
+  return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+}
+function cfCount(value) {
+  return value === null ? 'Indisponível' : value > 0 && value < 5 ? '&lt; 5' : value.toLocaleString('pt-BR');
+}
+function cfStageCount(etapa, per) {
+  const rows = cfDiario.filter(r => r.origem === cfOrigem && Number(r.etapa) === etapa);
+  return rows.length && rows.every(r => cfValidCount(r.alcancaram)) ? per[etapa].alc : null;
+}
+function splitAiMessages(output) {
+  const partes = Array.isArray(output) ? output : (output || '').split(/\n|\n/);
+  const MIN = 3;
+  const ITEM = /^\s*(?:\p{Extended_Pictographic}|[0-9#*]\uFE0F?\u20E3)/u;
+  const saida = [];
+  let bloco = [], vazias = [];
+  const fechar = () => {
+    if (bloco.length >= MIN) saida.push(bloco.map(l => l.trim()).join('\n'));
+    else saida.push(...bloco);
+    bloco = [];
+    saida.push(...vazias);
+    vazias = [];
+  };
+  for (const p of partes) {
+    const t = String(p);
+    if (t.trim().length > 2 && ITEM.test(t)) { bloco.push(t); vazias = []; continue; }
+    if (bloco.length && !t.trim()) { vazias.push(p); continue; }
+    fechar();
+    saida.push(p);
+  }
+  fechar();
+  return saida;
+}
+// Count nonempty parts of AI memory outputs; no delivery confirmation required.
+function cfMemoryCount(rows) {
+  let total = 0;
+  const seen = new Set();
+  for (const row of rows) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    if (row.message?.type !== 'ai') continue;
+    const output = row.message.content;
+    if (typeof output !== 'string' && !(Array.isArray(output) && output.every(p => typeof p === 'string'))) throw new Error('Formato de memória não suportado');
+    total += splitAiMessages(output).filter(part => String(part).trim().length > 0).length;
+  }
+  return total;
+}
+function cfMemorySessions(phone) {
+  let digits = String(phone || '').replace(/\D/g, '');
+  if (digits.startsWith('55') && digits.length > 11) digits = digits.slice(2);
+  if (!/^\d{10,11}$/.test(digits)) throw new Error('Identificador de conversa não suportado');
+  const local = new Set([digits]);
+  // Cache keys omit the Brazilian mobile ninth digit; memory uses +55 E.164.
+  if (digits.length === 10) local.add(digits.slice(0,2) + '9' + digits.slice(2));
+  if (digits.length === 11 && digits[2] === '9') local.add(digits.slice(0,2) + digits.slice(3));
+  return [...local].map(value => '+55' + value);
+}
+const cfAiMemoryTotals = new Map();
+function cfAiMemoryKey() { return `${cfOrigem}|${cfRangeFrom}|${cfRangeTo}`; }
+function cfAiMemoryPaint() {
+  const element = document.getElementById('cfAiMemoryValue');
+  if (!element) return;
+  const entry = cfAiMemoryTotals.get(cfAiMemoryKey());
+  const label = !entry || entry.status === 'loading' ? 'Carregando…' : entry.status === 'error' ? 'Indisponível' : entry.total.toLocaleString('pt-BR');
+  element.textContent = label;
+  element.classList.toggle('cf-unavailable', !entry || entry.status !== 'ready');
+  const note = document.getElementById('cfAiMemoryNote');
+  if (note) note.textContent = entry?.status === 'error' ? 'Não foi possível consultar a memória da IA. Tente novamente.' : 'Contagem pela memória, sem confirmação de envio. Partes vazias não contam.';
+  const retry = document.getElementById('cfAiMemoryRetry');
+  if (retry) retry.hidden = entry?.status !== 'error';
+}
+async function cfLoadAiMemory(retry = false) {
+  const key = cfAiMemoryKey();
+  if (retry) cfAiMemoryTotals.delete(key);
+  const cached = cfAiMemoryTotals.get(key);
+  if (cached && (cached.status === 'loading' || Date.now() - cached.updatedAt < 60000)) { cfAiMemoryPaint(); return; }
+  cfAiMemoryTotals.set(key, {status:'loading'});
+  cfAiMemoryPaint();
+  const origem = cfOrigem, from = cfRangeFrom, to = cfRangeTo;
+  try {
+    const leads = await sbFetch(`clara_etapas_cache?select=telefone_chave&origem=eq.${encodeURIComponent(origem)}&dia=gte.${from}&dia=lte.${to}&order=telefone_chave.asc`);
+    const sessions = [...new Set(leads.flatMap(row => cfMemorySessions(row.telefone_chave)))];
+    let total = 0;
+    // Bound URL length and avoid fetching histories outside the selected cohort.
+    for (let i = 0; i < sessions.length; i += 40) {
+      const filter = encodeURIComponent('(' + sessions.slice(i,i+40).map(id => '"' + id + '"').join(',') + ')');
+      const rows = await sbFetch(`n8n_chat_histories?select=id,message&message->>type=eq.ai&session_id=in.${filter}&order=id.asc`);
+      total += cfMemoryCount(rows);
+    }
+    cfAiMemoryTotals.set(key, {status:'ready',total,updatedAt:Date.now()});
+  } catch (error) {
+    cfAiMemoryTotals.set(key, {status:'error',updatedAt:Date.now()});
+  }
+  // A response for an old filter must never overwrite the currently shown card.
+  if (key === cfAiMemoryKey()) cfAiMemoryPaint();
+}
+function cfRenderSummary(per) {
+  const milestones = [[0,'Responderam ao template'],[7,'Chegaram à oferta'],[8,'Chegaram ao link de pagamento'],[9,'Vendas registradas']];
+  const applicable = cfOrigem === 'sem_interesse' ? [] : milestones.filter(([e]) => cfOrigem === 'principal' || cfDiario.some(r => r.origem === cfOrigem && Number(r.etapa) === e));
+  const aiCard = `<div class="cf-summary-card"><strong id="cfAiMemoryValue" class="cf-unavailable" aria-live="polite">Carregando…</strong><span>Mensagens da IA</span><details class="cf-details"><summary>Como contamos</summary><p>Respostas da IA registradas na memória das conversas deste recorte, selecionadas pela data em que começaram. Cada parte não vazia conta uma mensagem; blocos de três ou mais tópicos consecutivos iniciados por emoji contam uma só.</p><p id="cfAiMemoryNote">Contagem pela memória, sem confirmação de envio. Partes vazias não contam.</p><button id="cfAiMemoryRetry" type="button" hidden onclick="cfLoadAiMemory(true)">Tentar novamente</button></details></div>`;
+  document.getElementById('cfSummary').innerHTML = applicable.length ? `<div class="cf-summary">${applicable.map(([e,label]) => { const value = cfStageCount(e,per); return `<div class="cf-summary-card"><strong class="${value === null ? 'cf-unavailable' : ''}">${cfCount(value)}</strong><span>${label}</span></div>`; }).join('')}${aiCard}</div><p class="cf-note">Os quatro marcos de pessoas são cumulativos: não some seus valores. O card da IA conta mensagens, não pessoas.</p>` : '';
+  if (applicable.length) cfLoadAiMemory();
+
+}
 function cfRenderBar(e, per, isBottleneck) {
-  const info = CF_ETAPAS[e];
-  const cur  = per[e];
-  const nxt  = per[e + 1];
-  const baseline = per[0].alc || 1;
-  const alc = cur.alc, trav = cur.trav;
-  const mediaWa   = alc > 0 ? cur.wsum / alc : null;
-  const passagem  = (nxt && alc > 0) ? (nxt.alc / alc * 100) : null;
-  // Regra "nenhum recorte com menos de 5 conversas é exibido": mascara o
-  // número exato e desativa o drill-down pra não expor um punhado de pessoas.
-  const alcTxt  = (alc > 0 && alc < 5)  ? '< 5' : alc.toLocaleString('pt-BR');
-  const travTxt = (trav > 0 && trav < 5) ? '< 5' : trav.toLocaleString('pt-BR');
-  const widthAlc  = Math.min(100, alc  / baseline * 100);
-  const widthTrav = Math.min(100, trav / baseline * 100);
-  const clickable = alc >= 5;
-  return `
-  <div class="cf-bar-row ${isBottleneck ? 'cf-bottleneck' : ''}">
-    <div class="cf-bar-hdr" ${clickable ? `onclick="cfToggleLeads(${e})" style="cursor:pointer;"` : ''}>
-      <div class="cf-bar-label">
-        <span class="cf-bar-n">${e}</span>
-        <span class="cf-bar-nome">${cfEsc(info.nome)}</span>
-        <div class="info-wrap"><span class="info-btn">?</span><div class="info-tooltip"><strong>Etapa ${e}</strong>Conta quando ${cfEsc(info.regra)}.</div></div>
-        ${isBottleneck ? '<span class="cf-gargalo-badge">GARGALO</span>' : ''}
-      </div>
-      <div class="cf-bar-stats">
-        <span>Alcançaram <b>${alcTxt}</b></span>
-        <span style="color:var(--danger)">Travaram <b>${travTxt}</b></span>
-        ${passagem !== null ? `<span>Passagem <b style="${isBottleneck?'color:#ff8a7a;':''}">${passagem.toFixed(0)}%</b></span>` : ''}
-        ${mediaWa !== null ? `<span class="cf-bar-wa">${mediaWa.toFixed(1)} msgs WhatsApp</span>` : ''}
-      </div>
+  const info = CF_ETAPAS[e], cur = per[e], nxt = per[e + 1];
+  const alc = cfStageCount(e,per), trav = cfNoReplyCount(cfOrigem,e);
+  const mediaWa = alc > 0 && cfDiario.filter(r => r.origem === cfOrigem && Number(r.etapa) === e).every(r => cfValidCount(r.media_msgs)) ? cur.wsum / alc : null;
+  const passagem = nxt && alc > 0 && cfStageCount(e+1,per) !== null ? nxt.alc / alc * 100 : null;
+  const widthAlc = Math.min(100,(alc || 0) / (per[0].alc || 1) * 100);
+  return `<div class="cf-bar-row ${isBottleneck ? 'cf-bottleneck' : ''}">
+    <div class="cf-bar-hdr">
+      <div class="cf-bar-label"><span class="cf-bar-n">${e}</span><span class="cf-bar-nome">${cfEsc(info.nome)}</span>${isBottleneck ? '<span class="cf-gargalo-badge">GARGALO</span>' : ''}</div>
+      <div class="cf-stat"><span class="cf-stat-label">Alcançaram</span>${cfCount(alc)}</div>
+      <div class="cf-stat"><span class="cf-stat-label">Sem resposta &gt;24h</span>${trav === null ? '<span aria-label="Dado indisponível">—</span>' : cfCount(trav)}</div>
+      <div class="cf-stat"><span class="cf-stat-label">Avançaram (%)</span>${passagem === null ? '—' : passagem.toLocaleString('pt-BR',{maximumFractionDigits:0})+'%'}</div>
     </div>
     <div class="cf-bar-track"><div class="cf-bar-fill cf-fill-alc" style="width:${widthAlc}%"></div></div>
-    <div class="cf-bar-track cf-bar-track-sub"><div class="cf-bar-fill cf-fill-trav" style="width:${widthTrav}%"></div></div>
-    <div class="cf-lead-panel" id="cfLeads_${e}"></div>
-  </div>`;
+    <details class="cf-details"><summary>Ver detalhes</summary>
+      <p>Conta quando ${cfEsc(info.regra)}.</p>
+      <p>Média de mensagens WhatsApp: <b>${mediaWa === null ? 'Indisponível' : mediaWa.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' mensagens'}</b>. Média das médias diárias recebidas, ponderada por pessoas que alcançaram esta etapa no período.</p>
+      ${alc >= 5 ? `<button type="button" onclick="cfToggleLeads(${e})">Ver pessoas nesta etapa</button>` : ''}
+      <div class="cf-lead-panel" id="cfLeads_${e}"></div>
+    </details></div>`;
 }
 function cfRenderGuia(origem) {
   let of = 0, lk = 0, vd = 0, semVer = 0;
@@ -2388,7 +2519,7 @@ function cfDrawChart(origem, etapa) {
     type: 'line',
     data: { labels, datasets: [
       { label: 'Alcançaram', data: alcData, borderColor: '#C4A96A', backgroundColor: '#C4A96A22', borderWidth: 2, tension: 0.3, pointRadius: rows.length > 40 ? 0 : 3, pointHoverRadius: 5 },
-      { label: 'Travaram',   data: travData, borderColor: '#C0392B', backgroundColor: '#C0392B22', borderWidth: 2, tension: 0.3, pointRadius: rows.length > 40 ? 0 : 3, pointHoverRadius: 5 },
+      { label: 'Inatividade (legado)',   data: travData, borderColor: '#C0392B', backgroundColor: '#C0392B22', borderWidth: 2, tension: 0.3, pointRadius: rows.length > 40 ? 0 : 3, pointHoverRadius: 5 },
     ]},
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -2422,7 +2553,7 @@ async function cfToggleLeads(etapa) {
     panel.innerHTML = `<div class="cf-lead-list">${rows.map(r => {
       const nome = r.nome && r.nome.trim() ? r.nome.trim() : 'Sem nome';
       const badge = etapa === 9 ? '' : (r.parada
-        ? '<span class="bool-badge nao cf-lead-badge">travou</span>'
+        ? '<span class="bool-badge nao cf-lead-badge">inatividade (legado)</span>'
         : '<span class="bool-badge sim cf-lead-badge">em andamento</span>');
       const link = r.url_chatwoot
         ? `<a href="${cfEsc(r.url_chatwoot)}" target="_blank" rel="noopener" class="cf-chat-link">Chatwoot ↗</a>`
@@ -2463,10 +2594,11 @@ async function cfRenderSemInteresse() {
 function cfRenderBody() {
   const per = cfAggEtapas(cfOrigem);
   const total = per[0].alc;
+  cfRenderSummary(per);
   document.getElementById('cfTopline').innerHTML = `
     Responderam: <b>${total.toLocaleString('pt-BR')}</b>
     <span class="cf-period-note">— período: ${fD(cfRangeFrom)} a ${fD(cfRangeTo)}, pela data em que a conversa começou${cfClamped ? ' · ajustado: sem dados confiáveis antes de 27/08/2026' : ''}</span>
-    <div class="info-wrap"><span class="info-btn">?</span><div class="info-tooltip" style="width:280px;">${CF_GENERAL_TOOLTIP}</div></div>
+    <details class="cf-help"><summary>Sobre os dados</summary>${CF_GENERAL_TOOLTIP}</details>
   `;
   if (cfOrigem === 'sem_interesse') {
     cfRenderSemInteresse();
@@ -2490,7 +2622,7 @@ function cfRenderBody() {
     const p = nxt.alc / cur.alc;
     if (p < bnVal) { bnVal = p; bnIdx = e; }
   }
-  let html = '<div class="cf-funnel">';
+  let html = `<details class="cf-help"><summary>Como ler os indicadores</summary><p>Pessoas que deixaram de responder e cuja última mensagem na conversa foi há mais de 24 horas.</p><p>Exatamente 24 horas não atende à condição. Uma resposta recebida retira a pessoa do indicador na próxima atualização. Não representa desistência confirmada. — significa dado indisponível: a fonte atual não fornece uma contagem validada de ausência de resposta.</p><p>Avançaram (%): pessoas que alcançaram a próxima etapa divididas pelas que alcançaram a etapa atual. Na última etapa ou sem base de cálculo, mostramos —. As barras douradas usam o total da primeira etapa como escala comum.</p></details><div class="cf-funnel"><div class="cf-columns"><span>Etapa</span><span>Alcançaram</span><span>Sem resposta &gt;24h</span><span>Avançaram (%)</span></div>`;
   for (let e = 0; e <= 9; e++) {
     if (e === 1) html += '<div class="cf-qualif-box"><div class="cf-qualif-lbl">Qualificação</div>';
     html += cfRenderBar(e, per, e === bnIdx);
@@ -2514,6 +2646,9 @@ async function refreshFunilClara() {
   const rangeKey = cfRangeFrom + '|' + cfRangeTo;
   if (cfRangeKey !== rangeKey) {
     document.getElementById('cfTopline').textContent = 'Carregando…';
+    document.getElementById('cfSummary').textContent = 'Carregando indicadores…';
+    document.getElementById('cfFunnelBody').style.display = '';
+    document.getElementById('cfSemInteresseBody').style.display = 'none';
     document.getElementById('cfFunnelBody').innerHTML = '<div class="empty-state">Carregando funil...</div>';
     try {
       const [diario, guia] = await Promise.all([
@@ -2522,6 +2657,8 @@ async function refreshFunilClara() {
       ]);
       cfDiario = diario; cfGuia = guia; cfRangeKey = rangeKey; cfLeadsCache = {};
     } catch (e) {
+      document.getElementById('cfSummary').textContent = 'Indicadores indisponíveis';
+      document.getElementById('cfTopline').textContent = 'Dados indisponíveis';
       document.getElementById('cfFunnelBody').innerHTML = `<div class="empty-state">Erro ao carregar o funil do Supabase.<br>${cfEsc(e.message)}</div>`;
       return;
     }

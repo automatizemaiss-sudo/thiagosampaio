@@ -1,0 +1,26 @@
+const fs=require('fs');
+const {chromium}=require('/Users/jussaracosta/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+(async()=>{
+const browser=await chromium.launch({headless:true,channel:'chrome'}); const page=await browser.newPage();
+let html=fs.readFileSync('performance.html','utf8').replace(/<script src=[\s\S]*?<\/script>/g,'').replace(/init\(\);\s*<\/script>/,'</script>');
+await page.route('**/*',r=>r.abort());
+await page.setContent(html);
+await page.evaluate(()=>{document.getElementById('loadingOverlay').style.display='none'; cfDrawChart=()=>{}; sbFetch=async()=>[]; document.getElementById('metricasControls').style.display='none'; activePage='funilclara'; document.getElementById('metricasPage').style.display='none'; document.getElementById('funilclaraPage').classList.add('visible'); cfRangeFrom='2026-08-27';cfRangeTo='2026-09-07'; cfDiario=[158,145,130,110,98,87,79,68,13,0].map((n,e)=>({origem:'principal',etapa:e,alcancaram:n,travaram:50,media_msgs:45.1})); cfRenderBody();});
+const assert=(x,m)=>{if(!x)throw Error(m)};
+assert((await page.locator('.cf-summary-card strong').allTextContents()).slice(0,4).join(',')==='158,68,13,0','cards');
+assert(await page.locator('.cf-fill-trav').count()===0,'red bar');
+await page.setViewportSize({width:1440,height:1500}); await page.screenshot({path:'artifacts/funil-desktop.png',fullPage:true});
+await page.setViewportSize({width:390,height:844});
+assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow');
+await page.locator('.cf-funnel .cf-details summary').first().focus(); await page.keyboard.press('Enter');
+assert(await page.locator('.cf-funnel .cf-details').first().getAttribute('open')!==null,'keyboard details');
+assert((await page.locator('.cf-funnel .cf-details').first().innerText()).includes('45,1 mensagens'),'decimal');
+await page.screenshot({path:'artifacts/funil-celular.png',fullPage:true});
+await page.evaluate(()=>{cfOrigem='presente_gratuito';cfRenderBody()}); assert(await page.locator('.cf-summary-card').count()===0,'tab isolation');
+await page.evaluate(()=>{cfOrigem='principal';cfDiario=[];cfRenderBody()}); assert((await page.locator('.cf-summary-card strong').allTextContents()).slice(0,4).every(x=>x==='Indisponível'),'empty not zero');
+await page.evaluate(()=>{cfDiario=[{origem:'principal',etapa:0,alcancaram:10,travaram:10}];});
+assert(await page.evaluate(()=>cfNoReplyCount('principal',0))===null,'legacy not relabelled');
+await page.evaluate(()=>{cfDiario=[{origem:'principal',etapa:0,alcancaram:null}];}); assert(await page.evaluate(()=>cfStageCount(0,cfAggEtapas('principal')))===null,'null not zero');
+console.log('PASS: cards, no red bar, mobile overflow, keyboard details, decimals, tab isolation, empty/null unavailable, legacy count rejected.');
+await browser.close();
+})();
