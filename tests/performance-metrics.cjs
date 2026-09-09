@@ -8,16 +8,16 @@ vm.runInContext(backend, context);
 vm.runInContext(`
 const inbound = CONEXAO_NAO_ATRIBUIDO;
 const tables = {
- [SHEETS.CHAMADO]: [{telefone:'1',data:'2026-09-01',WABA:'A'}],
+ [SHEETS.CHAMADO]: [{telefone:'1',data:'2026-09-01',waba:'A'}],
  [SHEETS.CONEXAO]: [
-  {telefone:'1',criado_em:'2026-09-02',WABA:'B'},
-  {telefone:'2',criado_em:'2026-09-02',WABA:'B',segmentacao:inbound},
-  {telefone:'3',criado_em:'2026-09-02',WABA:inbound}],
- [SHEETS.LINK]: [{telefone:'1',dia_de_link:'2026-09-03',WABA:'B'}],
+  {telefone:'1',criado_em:'2026-09-02',waba:'B'},
+  {telefone:'2',criado_em:'2026-09-02',waba:'B',segmentacao:inbound},
+  {telefone:'3',criado_em:'2026-09-02',waba:inbound}],
+ [SHEETS.LINK]: [{telefone:'1',dia_de_link:'2026-09-03',waba:'B'}],
  [SHEETS.VENDAS]: [
   {telefone:'1',dia_de_venda:'2026-09-04',venda:true},
   {telefone:'1',dia_de_venda:'2026-08-30',venda:true}],
- [SHEETS.CUSTOS]: []
+ [SHEETS.CUSTOS]: [{Data:'2026-09-02',Categoria:'Templates da Meta',WABA:'B',Enviados:10,Entregues:8}]
 };
 const ctx = {rows: key=>tables[key] || [], memo:(key,fn)=>fn()};
 globalThis.result = getGroupedWaba(ctx);
@@ -57,3 +57,8 @@ assert.equal(vm.runInNewContext(countCode+';cfCount(3)'), '3');
 const summary=html.slice(html.indexOf('function cfRenderSummary('),html.indexOf('function cfRenderBar('));
 assert.doesNotMatch(summary,/aiCard|cfLoadAiMemory|Mensagens da IA/);
 console.log('PASS: legacy payload inbound fallback without double counting; exact small counts; funnel without AI card.');
+
+assert.equal(context.result.A.find(r=>r.date==='2026-09-01').chamados,1);
+assert.equal(context.result.B.find(r=>r.date==='2026-09-03').links,1);
+assert.equal(context.result.B.find(r=>r.date==='2026-09-02').entregues,8);
+console.log('PASS: actual lowercase event headers and uppercase Custos header.');

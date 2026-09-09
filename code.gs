@@ -184,7 +184,7 @@ const TIMEZONE = Session.getScriptTimeZone() || 'America/Sao_Paulo';
 // Cache do payload completo.
 // Suba o sufixo _v4 para _v5 etc. se mudar o FORMATO do payload — isso
 // invalida na hora todo cache antigo que ainda estiver vivo.
-const CACHE_KEY = 'ts_dashboard_all_v6';
+const CACHE_KEY = 'ts_dashboard_all_v7';
 const CACHE_TTL = 600; // segundos (10 min)
 
 // ───────────────────────────────────────────────
@@ -684,8 +684,13 @@ function isConexaoNaoAtribuida(valorWaba) {
   return String(valorWaba || '').trim().toLowerCase() === CONEXAO_NAO_ATRIBUIDO;
 }
 
+function wabaValue(row) {
+  // Eventos usam "waba"; Custos usa "WABA".
+  return fieldStr(row['waba']) || fieldStr(row['WABA']);
+}
 function isLeadNaoAtribuido(row) {
-  return ['WABA', 'segmentacao', 'qual_webn', 'template_name'].some(field => isConexaoNaoAtribuida(row[field]));
+  return isConexaoNaoAtribuida(wabaValue(row)) ||
+    ['segmentacao', 'qual_webn', 'template_name'].some(field => isConexaoNaoAtribuida(row[field]));
 }
 
 function getGroupedFunil(fieldName, ctx) {
@@ -799,14 +804,14 @@ function getGroupedWaba(ctx) {
   ctx.rows(SHEETS.CHAMADO).forEach(r => {
     const date = toISODate(r['data']);
     if (!date) return;
-    const b = ensure(r['WABA'], date);
+    const b = ensure(wabaValue(r), date);
     if (b) b.chamados += 1;
   });
 
   ctx.rows(SHEETS.CONEXAO).forEach(r => {
     const date = toISODate(r['criado_em'] || r['dia_de_conexao']);
     if (!date || date < WABA_CONEXAO_LINK_MIN_DATE) return;
-    const b = ensure(r['WABA'], date);
+    const b = ensure(wabaValue(r), date);
     if (b) {
       if (isLeadNaoAtribuido(r)) b.conectadosNaoAtribuidos += 1;
       else b.conectados += 1;
@@ -816,7 +821,7 @@ function getGroupedWaba(ctx) {
   linksDeduplicados(ctx).forEach(r => {
     const date = toISODate(r['dia_de_link']);
     if (!date || date < WABA_CONEXAO_LINK_MIN_DATE) return;
-    const b = ensure(r['WABA'], date);
+    const b = ensure(wabaValue(r), date);
     if (b) b.links += 1;
   });
 
@@ -828,7 +833,7 @@ function getGroupedWaba(ctx) {
     // Nunca usar um atendimento posterior à venda como atribuição.
     const entries = wabaIndex[fieldStr(r['telefone'])] || [];
     const previous = entries.filter(entry => entry.date <= date);
-    const waba = fieldStr(r['WABA']) || (previous.length ? previous[previous.length - 1].valor : '');
+    const waba = wabaValue(r) || (previous.length ? previous[previous.length - 1].valor : '');
     const b = ensure(waba, date);
     if (b) b.vendas += 1;
   });
@@ -837,7 +842,7 @@ function getGroupedWaba(ctx) {
     if (String(r['Categoria'] || '').trim() !== 'Templates da Meta') return;
     const date = toISODate(r['Data']);
     if (!date) return;
-    const b = ensure(r['WABA'], date);
+    const b = ensure(wabaValue(r), date);
     if (!b) return;
     b.enviadas  += toNumber(r['Enviados']);
     b.entregues += toNumber(r['Entregues']);
@@ -888,7 +893,7 @@ function buildTelefoneFieldIndex(fieldName, ctx) {
       ctx.rows(sheetName).forEach(r => {
         const telefone = fieldStr(r['telefone']);
         if (!telefone) return;
-        const valor = fieldStr(r[fieldName]);
+        const valor = fieldName === 'WABA' ? wabaValue(r) : fieldStr(r[fieldName]);
         if (!valor) return;
         let date = null;
         for (let i = 0; i < dateFieldNames.length; i++) {
