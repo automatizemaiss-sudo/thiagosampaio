@@ -919,10 +919,9 @@ const METRIC_TOOLTIPS = {
   readRate:       { title:'Taxa de Leitura',     text:'Lidas dividido por Entregues do período (Read Rate).' },
   semInteresse:   { title:'Sem Interesse',       text:'Leads que clicaram no botão "sem interesse" do disparo. Alguns voltam a conversar depois — o clique marca a entrada, não encerra.' },
   transferencias: { title:'Transferências',      text:'Quem estava em conexão com a IA e foi transferido para o humano.' },
-  total:          { title:'Todos',               text:'Todos os leads da base no período, chamados ou não.' },
   naoChamados:    { title:'Não Chamados',        text:'Leads da base que não foram chamados por erro de dados: telefone ou e-mail inválidos.' },
   followupsMarcados: { title:'Follow-ups Marcados', text:'Contatos únicos que tiveram um follow-up marcado no dia (data de "momento em que foi marcado"). Se o mesmo telefone for marcado mais de uma vez no mesmo dia, conta só uma vez.' },
-  conectadosNaoAtribuidos: { title:'Chamaram primeiro', text:'Leads que chamaram o número sem ter recebido disparo — presente gratuito e outras entradas. Estão incluídos no total de Conectados.' },
+  conectadosNaoAtribuidos: { title:'Chamaram primeiro', text:'Leads que chamaram o número sem ter recebido disparo — presente gratuito e outras entradas. Exibidos separadamente das Conexões dos dados primários.' },
   mensagensIA: { title:'Mensagens da IA', text:'Mensagens que a Clara enviou no WhatsApp. Uma resposta dela costuma sair em vários balões — o número conta balões enviados, não respostas.' },
   mensagensIAMedia: { title:'Msgs média / conversa', text:'Média de balões de WhatsApp por conversa em que o lead respondeu. Sobe conforme a conversa avança nas etapas — quem para na qualificação troca poucas mensagens, quem chega na oferta troca muitas.' },
 };
@@ -953,7 +952,6 @@ const SECONDARY_CARDS = [
   { key:'readRate',       label:'Taxa de Leitura',     icon:'📖', format:'pct' },
   { key:'semInteresse',   label:'Sem Interesse',       icon:'🚫', format:'num' },
   { key:'transferencias', label:'Transferências',      icon:'🔄', format:'num' },
-  { key:'total',          label:'Todos',               icon:'👥', format:'num' },
   { key:'naoChamados',    label:'Não Chamados',        icon:'⛔', format:'num' },
   { key:'followupsMarcados', label:'Follow-ups Marcados', icon:'📌', format:'num' },
   { key:'conectadosNaoAtribuidos', label:'Chamaram primeiro', icon:'📥', format:'num' },
@@ -984,12 +982,12 @@ const FUNIL_CARD_CFG_SECONDARY_FULL = [
 const FUNIL_CARD_CFG_SECONDARY_BASIC = [
   { key:'chamados', label:'Tentativas de Envio', icon:'📤', format:'num' },
 ];
-// WABA: sem Vendas (não foi pedido — ver getGroupedWaba() no backend),
-// mas COM Erros, porque "entregues" por WABA vem da aba Custos.
+// WABA: eventos atribuídos ao número que atendia o lead.
 const WABA_CARD_CFG_PRIMARY = [
   { key:'entregues',   label:'Mensagens Entregues', icon:'📬', format:'num' },
   { key:'conectados',  label:'Conexões',            icon:'💬', format:'num' },
   { key:'links',       label:'Links',               icon:'🔗', format:'num' },
+  { key:'vendas',       label:'Vendas',               icon:'💰', format:'num' },
   { key:'taxaConexao', label:'% Conexão',           icon:'📡', format:'pct' },
 ];
 const WABA_CARD_CFG_SECONDARY = [
@@ -1018,7 +1016,6 @@ const METRICS_CONFIG = [
   { key:'erros',       label:'Erros',             format:'num', on:false },
   { key:'lidas',       label:'Lidas',             format:'num', on:false },
   { key:'readRate',    label:'Taxa Leitura',      format:'pct', on:false },
-  { key:'total',       label:'Todos',             format:'num', on:false },
   { key:'naoChamados', label:'Não Chamados',      format:'num', on:false },
   { key:'followupsMarcados', label:'Follow-ups Marcados', format:'num', on:false },
 ];
@@ -1048,11 +1045,12 @@ const FUNIL_METRICS_CONFIG_BASIC = [
   { key:'convTotal',   label:'% Conv.',    format:'pct', on:true  },
   { key:'convConexao', label:'% Conv. Conn.', format:'pct', on:true  },
 ];
-// WABA: sem Vendas/Conv. — mesmo motivo do card (ver WABA_CARD_CFG_PRIMARY).
+// Evolução das métricas por WABA.
 const FUNIL_METRICS_CONFIG_WABA = [
   { key:'entregues',   label:'Entregues', format:'num', on:true  },
   { key:'conectados',  label:'Conexões',  format:'num', on:true  },
   { key:'links',       label:'Links',     format:'num', on:true  },
+  { key:'vendas',       label:'Vendas',     format:'num', on:true  },
   { key:'taxaConexao', label:'% Conexão', format:'pct', on:true  },
   { key:'chamados',    label:'Tentativas',format:'num', on:false },
   { key:'erros',       label:'Erros',     format:'num', on:false },
@@ -1081,11 +1079,11 @@ const TABLE_COLS = [
   { key:'erros',          label:'Erros',            format:'num'  },
   { key:'lidas',          label:'Lidas',            format:'num'  },
   { key:'readRate',       label:'Taxa Leitura',     format:'pct'  },
-  { key:'total',          label:'Todos',            format:'num'  },
   { key:'naoChamados',    label:'Não Chamados',     format:'num'  },
   { key:'semInteresse',   label:'Sem Interesse',    format:'num'  },
   { key:'transferencias', label:'Transferências',   format:'num'  },
   { key:'followupsMarcados', label:'Follow-ups Marcados', format:'num' },
+  { key:'conectadosNaoAtribuidos', label:'Chamaram primeiro', icon:'📥', format:'num' },
 ];
 // Tabela detalhada — sub-abas. Templates ganha as colunas de entrega.
 const FUNIL_TABLE_COLS_TEMPLATES = [
@@ -1117,6 +1115,7 @@ const FUNIL_TABLE_COLS_WABA = [
   { key:'chamados',    label:'Tentativas', format:'num'  },
   { key:'conectados',  label:'Conexões',   format:'num'  },
   { key:'links',       label:'Links',      format:'num'  },
+  { key:'vendas',       label:'Vendas',      format:'num'  },
   { key:'entregues',   label:'Entregues',  format:'num'  },
   { key:'erros',       label:'Erros',      format:'num'  },
   { key:'taxaConexao', label:'% Conexão',  format:'pct'  },
@@ -1525,7 +1524,11 @@ function getSubTabFiltered(nome) {
   const rows = (nome && data[nome]) ? data[nome] : [];
   return rows.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
 }
-function segData(row) { return row.mkt; }
+function segData(row) {
+  const d = row.mkt;
+  return { ...d, conectadosTotal: d.conectados,
+    conectados: d.conectados == null ? null : Math.max(0, d.conectados - (d.conectadosNaoAtribuidos || 0)) };
+}
 function sum(rows, field) {
   let s = 0, has = false;
   rows.forEach(r => { const v = segData(r)[field]; if (v !== null && v !== undefined) { s += v; has = true; } });
@@ -1552,12 +1555,13 @@ function aggregates(rows) {
         lidas=sum(rows,'lidas'), erros=sum(rows,'erros'),
         followupsMarcados=sum(rows,'followupsMarcados'),
         conectadosNaoAtribuidos=sum(rows,'conectadosNaoAtribuidos');
+  const conectadosTotal = sum(rows, 'conectadosTotal');
   return {
     total, naoChamados, chamados, conectados, links, vendas, semInteresse, transferencias,
     enviadas, entregues, lidas, erros, followupsMarcados, conectadosNaoAtribuidos,
-    taxaConexao: entregues ? (conectados||0)/entregues*100 : null,
+    taxaConexao: entregues ? (conectadosTotal||0)/entregues*100 : null,
     convTotal:   entregues ? (vendas||0)/entregues*100     : null,
-    convConexao: conectados ? (vendas||0)/conectados*100   : null,
+    convConexao: conectadosTotal ? (vendas||0)/conectadosTotal*100 : null,
     readRate:    entregues ? (lidas||0)/entregues*100      : null,
   };
 }
@@ -1569,6 +1573,7 @@ function aggregatesFunil(rows) {
   const base = (entregues && entregues > 0) ? entregues : chamados;
   return {
     chamados, conectados, links, vendas, enviadas, entregues, lidas, erros,
+    conectadosNaoAtribuidos: sumF(rows, 'conectadosNaoAtribuidos'),
     taxaConexao: base ? (conectados||0)/base*100 : null,
     convTotal:   base ? (vendas||0)/base*100     : null,
     convConexao: conectados ? (vendas||0)/conectados*100 : null,
@@ -1597,6 +1602,7 @@ function tooltipHtmlFor(key) {
 function buildCard(cfg, agg, withTooltip) {
   const v = agg[cfg.key];
   const isPct = cfg.format === 'pct';
+  const errorRate = cfg.key === 'erros' && v != null && agg.chamados > 0 ? v / agg.chamados * 100 : null;
   const disp  = v === null || v === undefined ? null : isPct ? fP(v) : fN(v);
   const isHL  = ['entregues','conectados','vendas','links','taxaConexao','convTotal','convConexao'].includes(cfg.key);
   let pctStyle = '';
@@ -1609,7 +1615,7 @@ function buildCard(cfg, agg, withTooltip) {
     <span class="card-icon">${cfg.icon}</span>
     <div class="card-label">${cfg.label}</div>
     <div class="card-value ${isPct?'is-rate':''} ${disp===null?'na':''}" style="${pctStyle}">${disp !== null ? disp : '—'}</div>
-    ${v !== null && v !== undefined && !isPct ? `<div class="card-sub">${Math.round(v).toLocaleString('pt-BR')}</div>` : ''}
+    ${v !== null && v !== undefined && !isPct ? `<div class="card-sub">${cfg.key === 'erros' ? (errorRate === null ? '— % das tentativas' : fP(errorRate) + ' das tentativas') : Math.round(v).toLocaleString('pt-BR')}</div>` : ''}
   `;
   return el;
 }
@@ -1767,16 +1773,16 @@ function renderTable(rows) {
   const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
   rows.forEach(row => {
     const d=segData(row);
-    const tx=d.entregues?(d.conectados||0)/d.entregues*100:null;
+    const tx=d.entregues?(d.conectadosTotal||0)/d.entregues*100:null;
     const ct=d.entregues?(d.vendas||0)/d.entregues*100:null;
-    const cc=d.conectados?(d.vendas||0)/d.conectados*100:null;
+    const cc=d.conectadosTotal?(d.vendas||0)/d.conectadosTotal*100:null;
     const rr=d.entregues?(d.lidas||0)/d.entregues*100:null;
     const rd={
       date:row.date, entregues:d.entregues, conectados:d.conectados, links:d.links, vendas:d.vendas,
       taxaConexao:tx, convTotal:ct, convConexao:cc, readRate:rr,
       chamados:d.chamados, enviadas:d.enviadas, erros:d.erros, lidas:d.lidas,
       total:d.total, naoChamados:d.naoChamados, semInteresse:d.semInteresse, transferencias:d.transferencias,
-      followupsMarcados:d.followupsMarcados,
+      followupsMarcados:d.followupsMarcados, conectadosNaoAtribuidos:d.conectadosNaoAtribuidos,
     };
     const tr=document.createElement('tr');
     tr.innerHTML=TABLE_COLS.map(col=>renderTableCell(col, rd[col.key])).join('');
@@ -1784,12 +1790,12 @@ function renderTable(rows) {
   });
   const agg=aggregates(rows);
   const footData = {
-    date:'TOTAL DO PERÍODO',
+    date:'TOTAL DO PERÍODO', conectadosNaoAtribuidos:agg.conectadosNaoAtribuidos,
     entregues:agg.entregues, conectados:agg.conectados, links:agg.links, vendas:agg.vendas,
     taxaConexao:agg.taxaConexao, convTotal:agg.convTotal, convConexao:agg.convConexao, readRate:agg.readRate,
     chamados:agg.chamados, enviadas:agg.enviadas, erros:agg.erros, lidas:agg.lidas,
     total:agg.total, naoChamados:agg.naoChamados, semInteresse:agg.semInteresse, transferencias:agg.transferencias,
-    followupsMarcados:agg.followupsMarcados,
+    followupsMarcados:agg.followupsMarcados, conectadosNaoAtribuidos:agg.conectadosNaoAtribuidos,
   };
   document.getElementById('tableFoot').innerHTML = `<tr>${TABLE_COLS.map(col => renderTableFootCell(col, footData[col.key])).join('')}</tr>`;
 }
@@ -1807,6 +1813,7 @@ function renderFunilTable(rows) {
     const cc = row.conectados ? (row.vendas||0)/row.conectados*100 : null;
     const rr = row.entregues ? (row.lidas||0)/row.entregues*100 : null;
     const rd = {
+      conectadosNaoAtribuidos:row.conectadosNaoAtribuidos,
       date:row.date, entregues:row.entregues, conectados:row.conectados, links:row.links, vendas:row.vendas,
       taxaConexao:tx, convTotal:ct, convConexao:cc, readRate:rr,
       chamados:row.chamados, enviadas:row.enviadas, erros:row.erros, lidas:row.lidas,
@@ -1817,7 +1824,7 @@ function renderFunilTable(rows) {
   });
   const agg = aggregatesFunil(rows);
   const footData = {
-    date:'TOTAL DO PERÍODO',
+    date:'TOTAL DO PERÍODO', conectadosNaoAtribuidos:agg.conectadosNaoAtribuidos,
     entregues:agg.entregues, conectados:agg.conectados, links:agg.links, vendas:agg.vendas,
     taxaConexao:agg.taxaConexao, convTotal:agg.convTotal, convConexao:agg.convConexao, readRate:agg.readRate,
     chamados:agg.chamados, enviadas:agg.enviadas, erros:agg.erros, lidas:agg.lidas,
@@ -1864,9 +1871,9 @@ function renderChart(rows) {
   const labels=rows.map(r=>fD(r.date));
   const series=key=>rows.map(r=>{
     const d=segData(r);
-    if(key==='taxaConexao')return d.entregues?(d.conectados||0)/d.entregues*100:null;
+    if(key==='taxaConexao')return d.entregues?(d.conectadosTotal||0)/d.entregues*100:null;
     if(key==='convTotal')  return d.entregues?(d.vendas||0)/d.entregues*100:null;
-    if(key==='convConexao')return d.conectados?(d.vendas||0)/d.conectados*100:null;
+    if(key==='convConexao')return d.conectadosTotal?(d.vendas||0)/d.conectadosTotal*100:null;
     if(key==='readRate')   return d.entregues?(d.lidas||0)/d.entregues*100:null;
     return d[key];
   });
