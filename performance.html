@@ -447,7 +447,7 @@
   .cf-etapa-select:focus { border-color: var(--accent); }
 
   /* Commercial funnel: shared columns and accessible native disclosures. */
-  .cf-summary { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; margin-bottom:14px; }
+  .cf-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:14px; }
   .cf-summary-card { background:var(--surface); border:1px solid var(--border-accent); border-radius:12px; padding:20px; }
   .cf-summary-card strong { display:block; font-size:32px; color:var(--accent); font-variant-numeric:tabular-nums; }
   .cf-summary-card strong.cf-unavailable { font-size:18px; overflow-wrap:anywhere; }
@@ -1526,8 +1526,16 @@ function getSubTabFiltered(nome) {
 }
 function segData(row) {
   const d = row.mkt;
-  return { ...d, conectadosTotal: d.conectados,
-    conectados: d.conectados == null ? null : Math.max(0, d.conectados - (d.conectadosNaoAtribuidos || 0)) };
+  // O payload antigo pode trazer zero no secundário apesar de já separar
+  // esses leads nos agrupamentos. Use um agrupamento, nunca some dimensões.
+  const inboundByGroup = [segmentacoesData, qualwebnData].map(group =>
+    Object.entries(group).filter(([name]) => name.trim().toLowerCase() === 'lead não atribuído, não recebeu disparo ativamente')
+      .reduce((total, [, rows]) => total + rows.filter(r => r.date === row.date)
+        .reduce((count, r) => count + (Number(r.conectados) || 0), 0), 0));
+  const inbound = Math.max(Number(d.conectadosNaoAtribuidos) || 0, ...inboundByGroup);
+  return { ...d, conectadosTotal: d.conectados, conectadosNaoAtribuidos: inbound,
+    conectados: d.conectados == null ? null : Math.max(0, d.conectados - inbound) };
+
 }
 function sum(rows, field) {
   let s = 0, has = false;
@@ -2421,7 +2429,7 @@ function cfValidCount(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
 }
 function cfCount(value) {
-  return value === null ? 'Indisponível' : value > 0 && value < 5 ? '&lt; 5' : value.toLocaleString('pt-BR');
+  return value === null ? 'Indisponível' : value.toLocaleString('pt-BR');
 }
 function cfStageCount(etapa, per) {
   const rows = cfDiario.filter(r => r.origem === cfOrigem && Number(r.etapa) === etapa);
@@ -2516,9 +2524,7 @@ async function cfLoadAiMemory(retry = false) {
 function cfRenderSummary(per) {
   const milestones = [[0,'Responderam ao template'],[7,'Chegaram à oferta'],[8,'Chegaram ao link de pagamento'],[9,'Vendas registradas']];
   const applicable = cfOrigem === 'sem_interesse' ? [] : milestones.filter(([e]) => cfOrigem === 'principal' || cfDiario.some(r => r.origem === cfOrigem && Number(r.etapa) === e));
-  const aiCard = `<div class="cf-summary-card"><strong id="cfAiMemoryValue" class="cf-unavailable" aria-live="polite">Carregando…</strong><span>Mensagens da IA</span><details class="cf-details"><summary>Como contamos</summary><p>Respostas da IA registradas na memória das conversas deste recorte, selecionadas pela data em que começaram. Cada parte não vazia conta uma mensagem; blocos de três ou mais tópicos consecutivos iniciados por emoji contam uma só.</p><p id="cfAiMemoryNote">Contagem pela memória, sem confirmação de envio. Partes vazias não contam.</p><button id="cfAiMemoryRetry" type="button" hidden onclick="cfLoadAiMemory(true)">Tentar novamente</button></details></div>`;
-  document.getElementById('cfSummary').innerHTML = applicable.length ? `<div class="cf-summary">${applicable.map(([e,label]) => { const value = cfStageCount(e,per); return `<div class="cf-summary-card"><strong class="${value === null ? 'cf-unavailable' : ''}">${cfCount(value)}</strong><span>${label}</span></div>`; }).join('')}${aiCard}</div><p class="cf-note">Os quatro marcos de pessoas são cumulativos: não some seus valores. O card da IA conta mensagens, não pessoas.</p>` : '';
-  if (applicable.length) cfLoadAiMemory();
+  document.getElementById('cfSummary').innerHTML = applicable.length ? `<div class="cf-summary">${applicable.map(([e,label]) => { const value = cfStageCount(e,per); return `<div class="cf-summary-card"><strong class="${value === null ? 'cf-unavailable' : ''}">${cfCount(value)}</strong><span>${label}</span></div>`; }).join('')}</div><p class="cf-note">Os quatro marcos de pessoas são cumulativos: não some seus valores.</p>` : '';
 
 }
 function cfRenderBar(e, per, isBottleneck) {
@@ -2555,8 +2561,8 @@ function cfRenderGuia(origem) {
   const titleHtml = `<div class="cf-guia-title">FUNIL DO GUIA NUTRICIONAL <span class="cf-guia-sub">degrau de fechamento pendurado na etapa 7, não é um funil paralelo</span>
     <div class="info-wrap"><span class="info-btn">?</span><div class="info-tooltip" style="width:260px;">O Guia só existe depois que a CDA foi apresentada e recusada. Uma conversa pode aparecer nos dois funis ao mesmo tempo — isso é esperado.</div></div>
   </div>`;
-  if (of < 5) {
-    return `<div class="cf-guia-panel">${titleHtml}<div class="empty-state">Poucos dados neste recorte (menos de 5 ofertas do Guia no período).</div></div>`;
+  if (of === 0) {
+    return `<div class="cf-guia-panel">${titleHtml}<div class="empty-state">Nenhuma oferta do Guia neste período (0).</div></div>`;
   }
   const steps = [ ['Ofertaram o Guia', of], ['Link do Guia', lk], ['Venda do Guia', vd] ];
   const rows = steps.map(([label, val]) => {
@@ -2681,8 +2687,8 @@ function cfRenderBody() {
   document.getElementById('cfSemInteresseBody').style.display = 'none';
   const body = document.getElementById('cfFunnelBody');
   body.style.display = '';
-  if (total < 5) {
-    body.innerHTML = '<div class="empty-state">Poucos dados neste recorte (menos de 5 conversas no período) — nada é exibido pra não distorcer a leitura.</div>';
+  if (total === 0) {
+    body.innerHTML = '<div class="empty-state">Nenhuma conversa neste período (0).</div>';
     return;
   }
   // Só considera até a transição 7→8 (chegar ao link). A transição 8→9
