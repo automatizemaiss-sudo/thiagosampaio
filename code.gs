@@ -184,7 +184,7 @@ const TIMEZONE = Session.getScriptTimeZone() || 'America/Sao_Paulo';
 // Cache do payload completo.
 // Suba o sufixo _v4 para _v5 etc. se mudar o FORMATO do payload — isso
 // invalida na hora todo cache antigo que ainda estiver vivo.
-const CACHE_KEY = 'ts_dashboard_all_v4';
+const CACHE_KEY = 'ts_dashboard_all_v5';
 const CACHE_TTL = 600; // segundos (10 min)
 
 // ───────────────────────────────────────────────
@@ -280,6 +280,7 @@ function getAll() {
     generatedAt:    new Date().toISOString(),
     dados:          getDadosDiarios(ctx),
     vendas:         getVendas(ctx),
+    vendasRoi:      getVendasParaRoi(ctx),
     segmentacoes:   getGroupedFunil('segmentacao',   ctx),
     qualwebn:       getGroupedFunil('qual_webn',     ctx),
     templates:      getGroupedFunil('template_name', ctx),
@@ -583,6 +584,10 @@ function getDadosDiarios(ctx) {
 // confiável a partir de WABA_CONEXAO_LINK_MIN_DATE — antes disso não
 // tentamos separar "não atribuídos", e getDadosDiarios() mantém o
 // número pronto da aba DADOS pra essas datas (ver uso acima).
+//
+// "Não atribuídos" ("chamaram primeiro" no front) ENTRAM no total de
+// conectados — são conexão de verdade, só não vieram de um disparo
+// nosso. naoAtribuidos é só a quebra secundária, não um carve-out.
 function countConexaoPorDia(ctx) {
   return ctx.memo('conexaoPorDia', function () {
     const porData = {};
@@ -590,8 +595,8 @@ function countConexaoPorDia(ctx) {
       const date = toISODate(r['criado_em'] || r['dia_de_conexao']);
       if (!date || date < WABA_CONEXAO_LINK_MIN_DATE) return;
       if (!porData[date]) porData[date] = { conectados: 0, naoAtribuidos: 0 };
+      porData[date].conectados += 1;
       if (isConexaoNaoAtribuida(r['WABA'])) porData[date].naoAtribuidos += 1;
-      else porData[date].conectados += 1;
     });
     return porData;
   });
@@ -1053,13 +1058,30 @@ function mesAnterior(mes) {
   return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
 }
 
+// Vendas para o ROI: inclui "Sim" E "Repetição" (upsell/recompra são
+// receita real — só não entram no card/página de Vendas, que mostra o
+// "extrato" de vendas novas). Só descarta linha explicitamente falsa/0
+// ou sem data.
+function getVendasParaRoi(ctx) {
+  const rows = ctx.rows(SHEETS.VENDAS);
+  const out = [];
+  rows.forEach(r => {
+    if (isFalsyFlagExplicit(r['venda'])) return;
+    const date = toISODate(r['dia_de_venda']);
+    if (!date) return;
+    out.push({ date, valor: toNumber(r['valor']) });
+  });
+  return out;
+}
+
 function getRoi(ctx) {
   const { taxaLiquido, faixas } = getConfig(ctx);
 
-  // FB por mês: soma de "valor" das vendas válidas (getVendas já exclui
-  // "Repetição"/falsas), agrupado pelo mês de "dia_de_venda".
+  // FB por mês: soma de "valor" de TODAS as vendas (Sim + Repetição) —
+  // upsell e recompra são receita real, excluí-las subestimava o
+  // faturamento. Agrupado pelo mês de "dia_de_venda".
   const fbPorMes = {};
-  getVendas(ctx).forEach(v => {
+  getVendasParaRoi(ctx).forEach(v => {
     const mes = v.date.slice(0, 7);
     fbPorMes[mes] = (fbPorMes[mes] || 0) + v.valor;
   });

@@ -807,7 +807,7 @@ const CF_ETAPAS = [
   { n:8, nome:'Link de pagamento da CDA',     regra:'a URL thiagosampaionutricao.com/pay, ou o evento link_enviado' },
   { n:9, nome:'Venda',                        regra:'o telefone estar presente na clara_vendas' },
 ];
-const CF_GENERAL_TOOLTIP = 'O número é contado direto das mensagens do WhatsApp gravadas no banco, sem IA no meio. A etapa de uma conversa é a mais avançada que ela alcançou (não a última mensagem). Os marcos são cumulativos e não devem ser somados.';
+const CF_GENERAL_TOOLTIP = 'O número é contado direto das mensagens do WhatsApp gravadas no banco, sem IA no meio. A etapa de uma conversa é a mais avançada que ela alcançou (não a última mensagem). Os marcos são cumulativos e não devem ser somados. O lead entra no dia em que respondeu pela primeira vez, não no dia em que a Clara mandou a primeira mensagem.';
 function cfEsc(s) {
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -854,6 +854,7 @@ const TABS_CONFIG = {
 // ════════════════════════════════════════════
 let allData            = [];
 let vendasData         = [];
+let vendasRoiData      = []; // Sim + Repetição — só pro cálculo de ROI (ver getVendasParaRoi no code.gs)
 let segmentacoesData   = {};
 let qualwebnData       = {};
 let templatesData      = {};
@@ -885,6 +886,9 @@ let cfOrigem       = 'principal';
 let cfLeadsCache   = {};
 let cfSemInteresseRows = [];
 let cfChart        = null;
+// Cache do card "Mensagens da IA" (aba Métricas/GERAL) — mesmo Supabase do
+// Funil Clara, mas um único agregado do período (sem quebra por etapa/origem).
+let iaMsgsCache = { rangeKey: '' };
 // Paleta de cores para categorias de custo
 const CAT_COLORS = ['#C4A96A','#60a5fa','#f59e0b','#a78bfa','#34d399','#fb923c','#f472b6'];
 const catColorMap = {};
@@ -902,23 +906,25 @@ function getCatColor(cat) {
 // ════════════════════════════════════════════
 const METRIC_TOOLTIPS = {
   entregues:      { title:'Mensagens Entregues', text:'Tentativas de envio que a Meta confirmou terem chegado ao destinatário.' },
-  conectados:     { title:'Conexões',            text:'Quem efetivamente entrou em conversa (respondeu) com a automação.' },
-  links:          { title:'Links',               text:'Leads que receberam o link de checkout/produto (1 por telefone no período).' },
-  vendas:         { title:'Vendas',              text:'Vendas classificadas como válidas (excluindo repetições de webhook).' },
+  conectados:     { title:'Conexões',            text:'Leads que responderam ao disparo, contados no dia em que responderam. Cada telefone conta uma vez por dia.' },
+  links:          { title:'Links',               text:'Links de pagamento enviados, no dia do envio.' },
+  vendas:         { title:'Vendas',              text:'Vendas fechadas no dia, pela data de pagamento. É o extrato do dia — não confundir com a etapa 9 do Funil Clara, que atribui a venda ao dia em que o lead conectou.' },
   taxaConexao:    { title:'% Conexão',           text:'Conexões dividido por Mensagens Entregues (ou por Tentativas, quando Entregues não está disponível para o grupo).' },
   convTotal:      { title:'% Conv. / Entregues', text:'Vendas dividido por Mensagens Entregues.' },
-  convConexao:    { title:'% Conv. / Conexão',   text:'Vendas dividido por Conexões.' },
+  convConexao:    { title:'% Conv. / Conexão',   text:'Vendas ÷ conectados do dia. Numerador e denominador são dias, não as mesmas pessoas — para a conversão real do grupo, ver o Funil Clara.' },
   chamados:       { title:'Tentativas de Envio', text:'Leads que você decidiu chamar e tentou enviar mensagem via WhatsApp.' },
   enviadas:       { title:'Mensagens Enviadas',  text:'Das tentativas, quantas a Meta aceitou e efetivamente disparou.' },
   erros:          { title:'Erros de Envio',      text:'Tentativas que não viraram mensagem entregue (rejeitadas pela Meta ou falha na entrega).' },
   lidas:          { title:'Mensagens Lidas',     text:'Das mensagens entregues, quantas foram abertas pelo destinatário.' },
   readRate:       { title:'Taxa de Leitura',     text:'Lidas dividido por Entregues do período (Read Rate).' },
-  semInteresse:   { title:'Sem Interesse',       text:'Quem recebeu o disparo e clicou no botão de opt-out.' },
+  semInteresse:   { title:'Sem Interesse',       text:'Leads que clicaram no botão "sem interesse" do disparo. Alguns voltam a conversar depois — o clique marca a entrada, não encerra.' },
   transferencias: { title:'Transferências',      text:'Quem estava em conexão com a IA e foi transferido para o humano.' },
   total:          { title:'Todos',               text:'Todos os leads da base no período, chamados ou não.' },
   naoChamados:    { title:'Não Chamados',        text:'Leads da base que não foram chamados por erro de dados: telefone ou e-mail inválidos.' },
   followupsMarcados: { title:'Follow-ups Marcados', text:'Contatos únicos que tiveram um follow-up marcado no dia (data de "momento em que foi marcado"). Se o mesmo telefone for marcado mais de uma vez no mesmo dia, conta só uma vez.' },
-  conectadosNaoAtribuidos: { title:'Conexão — Não Atribuídos', text:'Leads que chamaram a gente por conta própria (inbound), sem termos disparado ativamente pra eles. Não entra na métrica principal de Conexão.' },
+  conectadosNaoAtribuidos: { title:'Chamaram primeiro', text:'Leads que chamaram o número sem ter recebido disparo — presente gratuito e outras entradas. Estão incluídos no total de Conectados.' },
+  mensagensIA: { title:'Mensagens da IA', text:'Mensagens que a Clara enviou no WhatsApp. Uma resposta dela costuma sair em vários balões — o número conta balões enviados, não respostas.' },
+  mensagensIAMedia: { title:'Msgs média / conversa', text:'Média de balões de WhatsApp por conversa em que o lead respondeu. Sobe conforme a conversa avança nas etapas — quem para na qualificação troca poucas mensagens, quem chega na oferta troca muitas.' },
 };
 const METRIC_COLORS = {
   chamados:'#5C6B61', conectados:'#ff6b6b', vendas:'#22c55e',
@@ -950,7 +956,7 @@ const SECONDARY_CARDS = [
   { key:'total',          label:'Todos',               icon:'👥', format:'num' },
   { key:'naoChamados',    label:'Não Chamados',        icon:'⛔', format:'num' },
   { key:'followupsMarcados', label:'Follow-ups Marcados', icon:'📌', format:'num' },
-  { key:'conectadosNaoAtribuidos', label:'Conexão — Não Atribuídos', icon:'📥', format:'num' },
+  { key:'conectadosNaoAtribuidos', label:'Chamaram primeiro', icon:'📥', format:'num' },
 ];
 // Cards principais para as sub-abas (Segmentações/Qual Webn/Templates) —
 // mesma estrutura de 7 métricas do GERAL.
@@ -1185,6 +1191,7 @@ async function fetchAll(noCache) {
 function aplicarPayload(p) {
   allData            = Array.isArray(p.dados)          ? p.dados          : [];
   vendasData         = Array.isArray(p.vendas)         ? p.vendas         : [];
+  vendasRoiData      = Array.isArray(p.vendasRoi)      ? p.vendasRoi      : vendasData;
   segmentacoesData   = p.segmentacoes && typeof p.segmentacoes === 'object' ? p.segmentacoes : {};
   qualwebnData       = p.qualwebn     && typeof p.qualwebn     === 'object' ? p.qualwebn     : {};
   templatesData      = p.templates    && typeof p.templates    === 'object' ? p.templates    : {};
@@ -1386,7 +1393,7 @@ function diasNoMesCivil(mes) {
 function computeRoiParaIntervalo(from, to) {
   const taxaLiquido = (roiConfig && roiConfig.taxa_liquido) || 0.93;
 
-  const vendasPeriodo = vendasData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+  const vendasPeriodo = vendasRoiData.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
   const fb = vendasPeriodo.reduce((s, v) => s + v.valor, 0);
   const fl = fb * taxaLiquido;
 
@@ -1606,12 +1613,71 @@ function buildCard(cfg, agg, withTooltip) {
   `;
   return el;
 }
+// ════════════════════════════════════════════
+// MENSAGENS DA IA — vem do Supabase (clara_etapas_cache), não da planilha.
+// O card "Mensagens Enviadas" (SECONDARY_CARDS) conta template aceito pela
+// Meta (Custos!"Templates da Meta"), não mensagem de conversa — por isso
+// este é um card à parte, não uma troca de fonte do mesmo card.
+// ════════════════════════════════════════════
+async function fetchIaMsgs(from, to) {
+  const clampedFrom = (!from || from < CLARA_MIN_DATE) ? CLARA_MIN_DATE : from;
+  const clampedTo   = (to && to >= clampedFrom) ? to : clampedFrom;
+  const rangeKey = clampedFrom + '|' + clampedTo;
+  if (iaMsgsCache.rangeKey === rangeKey) return iaMsgsCache;
+  const clamped = !!from && from < CLARA_MIN_DATE;
+  try {
+    const rows = await sbFetch(`clara_etapas_cache?select=msgs_whatsapp,msgs_lead&dia=gte.${clampedFrom}&dia=lte.${clampedTo}`);
+    let total = 0, comResposta = 0, nConversas = 0;
+    rows.forEach(r => {
+      const w = Number(r.msgs_whatsapp) || 0;
+      total += w;
+      if (Number(r.msgs_lead) > 0) { comResposta += w; nConversas++; }
+    });
+    iaMsgsCache = { rangeKey, total, comResposta, media: nConversas ? comResposta / nConversas : null, clamped };
+  } catch (e) {
+    iaMsgsCache = { rangeKey, error: e.message, clamped };
+  }
+  return iaMsgsCache;
+}
+function buildIaMsgsPlaceholders(gS) {
+  const c1 = document.createElement('div');
+  c1.className = 'card highlight'; c1.id = 'iaMsgsCard';
+  c1.style.cssText = 'overflow:visible; position:relative;';
+  c1.innerHTML = `${tooltipHtmlFor('mensagensIA')}<span class="card-icon">🤖</span><div class="card-label">Mensagens da IA</div><div class="card-value">—</div><div class="card-sub">carregando do Supabase…</div>`;
+  gS.appendChild(c1);
+  const c2 = document.createElement('div');
+  c2.className = 'card'; c2.id = 'iaMsgsMediaCard';
+  c2.style.cssText = 'overflow:visible; position:relative;';
+  c2.innerHTML = `${tooltipHtmlFor('mensagensIAMedia')}<span class="card-icon">📊</span><div class="card-label">Msgs média / conversa</div><div class="card-value">—</div><div class="card-sub">carregando…</div>`;
+  gS.appendChild(c2);
+}
+async function loadIaMsgsCards() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const data = await fetchIaMsgs(from, to);
+  const c1 = document.getElementById('iaMsgsCard');
+  const c2 = document.getElementById('iaMsgsMediaCard');
+  if (!c1 || !c2) return; // usuário já trocou de aba/view antes de terminar
+  if (data.error) {
+    c1.querySelector('.card-value').textContent = '—';
+    c1.querySelector('.card-sub').textContent = 'erro ao carregar do Supabase';
+    c2.querySelector('.card-value').textContent = '—';
+    c2.querySelector('.card-sub').textContent = '';
+    return;
+  }
+  c1.querySelector('.card-value').textContent = data.total.toLocaleString('pt-BR');
+  c1.querySelector('.card-sub').textContent = `${data.comResposta.toLocaleString('pt-BR')} em conversas com resposta${data.clamped ? ' · sem dado antes de 27/08' : ''}`;
+  c2.querySelector('.card-value').textContent = data.media !== null ? data.media.toFixed(1) : '—';
+  c2.querySelector('.card-sub').textContent = 'balões por conversa com resposta';
+}
 function renderCards(agg) {
   const gP = document.getElementById('gridPrimary');
   const gS = document.getElementById('gridSecondary');
   gP.innerHTML = ''; gS.innerHTML = '';
   PRIMARY_CARDS.forEach(c => gP.appendChild(buildCard(c, agg, false)));
   SECONDARY_CARDS.forEach(c => gS.appendChild(buildCard(c, agg, true)));
+  buildIaMsgsPlaceholders(gS);
+  loadIaMsgsCards();
 }
 // ════════════════════════════════════════════
 // CARDS — FUNIL (Segmentações / Qual Webn / Templates)
@@ -2464,6 +2530,7 @@ function cfRenderBar(e, per, isBottleneck) {
     <div class="cf-bar-track"><div class="cf-bar-fill cf-fill-alc" style="width:${widthAlc}%"></div></div>
     <details class="cf-details"><summary>Ver detalhes</summary>
       <p>Conta quando ${cfEsc(info.regra)}.</p>
+      ${e === 9 ? '<p>A venda é atribuída ao dia em que o lead <b>conectou</b>, não ao dia do pagamento — por isso o número de um dia ainda sobe nos 3 dias seguintes, enquanto vendas continuam entrando pra esse grupo. O card "Vendas" da aba Métricas mostra o extrato pelo dia do pagamento; este número mostra a conversão daquele grupo de leads.</p>' : ''}
       <p>Média de mensagens WhatsApp: <b>${mediaWa === null ? 'Indisponível' : mediaWa.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' mensagens'}</b>. Média das médias diárias recebidas, ponderada por pessoas que alcançaram esta etapa no período.</p>
       ${alc >= 5 ? `<button type="button" onclick="cfToggleLeads(${e})">Ver pessoas nesta etapa</button>` : ''}
       <div class="cf-lead-panel" id="cfLeads_${e}"></div>
@@ -2622,7 +2689,7 @@ function cfRenderBody() {
     const p = nxt.alc / cur.alc;
     if (p < bnVal) { bnVal = p; bnIdx = e; }
   }
-  let html = `<details class="cf-help"><summary>Como ler os indicadores</summary><p>Pessoas que deixaram de responder e cuja última mensagem na conversa foi há mais de 24 horas.</p><p>Exatamente 24 horas não atende à condição. Uma resposta recebida retira a pessoa do indicador na próxima atualização. Não representa desistência confirmada. — significa dado indisponível: a fonte atual não fornece uma contagem validada de ausência de resposta.</p><p>Avançaram (%): pessoas que alcançaram a próxima etapa divididas pelas que alcançaram a etapa atual. Na última etapa ou sem base de cálculo, mostramos —. As barras douradas usam o total da primeira etapa como escala comum.</p></details><div class="cf-funnel"><div class="cf-columns"><span>Etapa</span><span>Alcançaram</span><span>Sem resposta &gt;24h</span><span>Avançaram (%)</span></div>`;
+  let html = `<details class="cf-help"><summary>Como ler os indicadores</summary><p>Pessoas que deixaram de responder e cuja última mensagem na conversa foi há mais de 24 horas.</p><p>Exatamente 24 horas não atende à condição. Uma resposta recebida retira a pessoa do indicador na próxima atualização. Não representa desistência confirmada. — significa dado indisponível: a fonte atual não fornece uma contagem validada de ausência de resposta.</p><p>Avançaram (%): pessoas que alcançaram a próxima etapa divididas pelas que alcançaram a etapa atual. Na última etapa ou sem base de cálculo, mostramos —. As barras douradas usam o total da primeira etapa como escala comum.</p></details>${cfConsolidacaoNote()}<div class="cf-funnel"><div class="cf-columns"><span>Etapa</span><span>Alcançaram</span><span>Sem resposta &gt;24h</span><span>Avançaram (%)</span></div>`;
   for (let e = 0; e <= 9; e++) {
     if (e === 1) html += '<div class="cf-qualif-box"><div class="cf-qualif-lbl">Qualificação</div>';
     html += cfRenderBar(e, per, e === bnIdx);
@@ -2636,6 +2703,19 @@ function cfRenderBody() {
   sel.value = String(defaultEtapa);
   sel.addEventListener('change', () => cfDrawChart(cfOrigem, Number(sel.value)));
   cfDrawChart(cfOrigem, defaultEtapa);
+}
+// 84% das vendas fecham em até 3 dias após a conexão (medido na Seção 6.2
+// do doc) — os últimos 3 dias corridos sempre aparecem "em consolidação",
+// não importa qual período foi selecionado no filtro.
+function cfConsolidacaoNote() {
+  const hoje = new Date();
+  const hojeISO = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+  const d = new Date(hoje); d.setDate(d.getDate() - 2);
+  const limiteISO = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if (cfRangeTo < limiteISO) return '';
+  const desde = cfRangeFrom > limiteISO ? cfRangeFrom : limiteISO;
+  const ate   = cfRangeTo < hojeISO ? cfRangeTo : hojeISO;
+  return `<p class="cf-note">🕓 <b>${fD(desde)}–${fD(ate)} ainda em consolidação:</b> a venda é atribuída ao dia em que o lead conectou, não ao dia do pagamento — 84% fecha em até 3 dias, então a etapa 9 (Venda) desses dias ainda deve subir.</p>`;
 }
 async function refreshFunilClara() {
   const from = document.getElementById('dateFrom').value;
