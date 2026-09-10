@@ -454,10 +454,16 @@
   .cf-summary-card span { display:block; font-size:15px; color:#c1d0c6; margin-top:8px; }
   .cf-note, .cf-help { color:#c1d0c6; font-size:14px; line-height:1.6; margin-bottom:16px; }
   .cf-desvio-wrap { margin: 8px 0 16px; }
-  .cf-desvio-list { display:flex; flex-wrap:wrap; gap:10px 20px; font-size:14px; color:#c1d0c6; }
-  .cf-desvio-list b { color:#EDE8D8; }
-  .cf-desvio-alerta { color:#ff8a7a; }
-  .cf-desvio-alerta b { color:#ff8a7a; }
+  .cf-desvio-list { display:flex; flex-wrap:wrap; gap:8px 12px; }
+  .cf-desvio-btn {
+    font-family: inherit; font-size:14px; color:#c1d0c6; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 5px 14px;
+    cursor: pointer; transition: border-color .15s, color .15s;
+  }
+  .cf-desvio-btn:hover { border-color: var(--accent); color: #EDE8D8; }
+  .cf-desvio-btn b { color:#EDE8D8; margin-left: 4px; }
+  .cf-desvio-btn.cf-desvio-alerta { border-color: rgba(255,138,122,0.5); color:#ff8a7a; }
+  .cf-desvio-btn.cf-desvio-alerta b { color:#ff8a7a; }
   .cf-columns, .cf-funnel .cf-bar-hdr { display:grid; grid-template-columns:minmax(0,1fr) 110px 160px 120px; gap:16px; align-items:center; }
   .cf-columns { color:#c1d0c6; font-size:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
   .cf-columns span:not(:first-child), .cf-stat { text-align:right; }
@@ -892,6 +898,7 @@ let roiCostChart = null;
 // Estado da aba Funil Clara (r2) — dados vêm direto do Supabase, não da planilha.
 let cfDiario       = [];   // linhas de vw_funil_diario_r2 no intervalo carregado
 let cfGuia         = [];   // linhas de vw_funil_guia_diario_r2 no intervalo carregado
+let cfSeguro       = [];   // linhas de vw_funil_seguro_diario_r2 no intervalo carregado
 let cfRangeKey     = '';   // `${from}|${to}` já carregado, evita refetch ao só trocar de origem
 let cfRangeFrom    = '';
 let cfRangeTo      = '';
@@ -2568,30 +2575,52 @@ function cfRenderBar(e, per, isBottleneck) {
 // ou seja, alcançou a oferta e não avançou pra 8) — objeção que virou
 // Seguro/Guia/follow-up não é link perdido, é o funil funcionando. Só a
 // última categoria (sem desvio nem follow-up) merece alarme de verdade.
+let cfDesvioCats = {};
 async function cfRenderSemLinkBreakdown() {
   const el = document.getElementById('cfDesvio8');
   if (!el) return;
   el.textContent = 'Carregando quebra por motivo…';
   try {
-    const rows = await sbFetch(`clara_etapas_cache?select=ofertou_seguro,ofertou_guia,marca_followup&origem=eq.${cfOrigem}&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}&etapa_max=eq.7`);
-    if (!rows.length) { el.innerHTML = ''; return; }
-    let seguro = 0, guia = 0, pausado = 0, semDesvio = 0;
+    const rows = await sbFetch(`clara_etapas_cache?select=telefone_chave,nome,url_chatwoot,ofertou_seguro,link_seguro,ofertou_guia,marca_followup&origem=eq.${cfOrigem}&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}&etapa_max=eq.7`);
+    if (!rows.length) { el.innerHTML = ''; cfDesvioCats = {}; return; }
+    const cats = { seguro: [], guia: [], pausado: [], semDesvio: [] };
     rows.forEach(r => {
-      if (r.ofertou_seguro) seguro++;
-      else if (r.ofertou_guia) guia++;
-      else if (r.marca_followup) pausado++;
-      else semDesvio++;
+      if (r.ofertou_seguro || r.link_seguro) cats.seguro.push(r);
+      else if (r.ofertou_guia) cats.guia.push(r);
+      else if (r.marca_followup) cats.pausado.push(r);
+      else cats.semDesvio.push(r);
     });
-    el.innerHTML = `<p class="cf-note"><b>${rows.length}</b> viram a oferta e não têm o link da CDA — por quê:</p>
+    cfDesvioCats = cats;
+    const catBtn = (key, label) => `<button type="button" class="cf-desvio-btn${key === 'semDesvio' && cats[key].length > 0 ? ' cf-desvio-alerta' : ''}" onclick="cfToggleDesvioCategoria('${key}')">${label} <b>${cats[key].length}</b></button>`;
+    el.innerHTML = `<p class="cf-note"><b>${rows.length}</b> viram a oferta e não têm o link da CDA — por quê (clique pra ver quem):</p>
       <div class="cf-desvio-list">
-        <span>Foi pro Seguro <b>${seguro}</b></span>
-        <span>Foi pro Guia <b>${guia}</b></span>
-        <span>Pausado / follow-up marcado <b>${pausado}</b></span>
-        <span${semDesvio > 0 ? ' class="cf-desvio-alerta"' : ''}>Sem desvio nem follow-up <b>${semDesvio}</b></span>
-      </div>`;
+        ${catBtn('seguro', 'Foi pro Seguro')}
+        ${catBtn('guia', 'Foi pro Guia')}
+        ${catBtn('pausado', 'Pausado / follow-up marcado')}
+        ${catBtn('semDesvio', 'Sem desvio nem follow-up')}
+      </div>
+      <div class="cf-lead-panel" id="cfDesvioLeads"></div>`;
   } catch (e) {
     el.innerHTML = `<p class="cf-note">Erro ao carregar a quebra por motivo: ${cfEsc(e.message)}</p>`;
   }
+}
+function cfToggleDesvioCategoria(key) {
+  const panel = document.getElementById('cfDesvioLeads');
+  if (!panel) return;
+  const list = cfDesvioCats[key] || [];
+  if (panel.dataset.cat === key && panel.classList.contains('open')) {
+    panel.classList.remove('open'); panel.dataset.cat = ''; return;
+  }
+  panel.dataset.cat = key;
+  panel.classList.add('open');
+  if (!list.length) { panel.innerHTML = '<div class="empty-state">Nenhum lead nesta categoria.</div>'; return; }
+  panel.innerHTML = `<div class="cf-lead-list">${list.map(r => {
+    const nome = r.nome && r.nome.trim() ? r.nome.trim() : 'Sem nome';
+    const link = r.url_chatwoot
+      ? `<a href="${cfEsc(r.url_chatwoot)}" target="_blank" rel="noopener" class="cf-chat-link">Chatwoot ↗</a>`
+      : `<span class="cf-chat-link disabled">sem link</span>`;
+    return `<div class="cf-lead-row"><span class="cf-lead-name">${cfEsc(nome)}</span><span class="cf-lead-fone">${cfEsc(cfFone(r.telefone_chave))}</span>${link}</div>`;
+  }).join('')}</div>`;
 }
 function cfRenderMergedOfertaLink(per, isBottleneck) {
   const alc = cfStageCount(7, per);
@@ -2642,6 +2671,32 @@ function cfRenderGuia(origem) {
     ? `⚠️ ${semVer.toLocaleString('pt-BR')} dessas ofertas foram feitas pra leads que nunca viram o preço da CDA (viola a Regra Inviolável 19 do prompt).`
     : 'Nenhuma oferta do Guia foi feita sem o lead antes ver o preço da CDA.';
   return `<div class="cf-guia-panel">${titleHtml}${rows}<div class="cf-guia-warn">${warn}</div></div>`;
+}
+function cfRenderSeguro(origem) {
+  let of = 0, lk = 0, vd = 0;
+  cfSeguro.forEach(r => {
+    if (r.origem !== origem) return;
+    of += Number(r.ofertaram_seguro) || 0;
+    lk += Number(r.link_seguro) || 0;
+    vd += Number(r.venderam_seguro) || 0;
+  });
+  const titleHtml = `<div class="cf-guia-title">FUNIL DO SEGURO PROTEÇÃO DE VAGA <span class="cf-guia-sub">degrau de fechamento pendurado na etapa 7, não é um funil paralelo</span>
+    <div class="info-wrap"><span class="info-btn">?</span><div class="info-tooltip" style="width:280px;">Alternativa de R$ 49,90 oferecida a quem quer garantir a condição especial mas não pode pagar a CDA agora — abatido do valor total quando fechar. Só existe depois que a CDA foi apresentada. Uma conversa pode aparecer nos funis da CDA, do Guia e do Seguro ao mesmo tempo — isso é esperado.</div></div>
+  </div>`;
+  if (of === 0) {
+    return `<div class="cf-guia-panel">${titleHtml}<div class="empty-state">Nenhuma oferta do Seguro neste período (0).</div></div>`;
+  }
+  const steps = [ ['Ofertaram o Seguro', of], ['Link do Seguro', lk], ['Venda do Seguro', vd] ];
+  const rows = steps.map(([label, val]) => {
+    const width = Math.min(100, val / of * 100);
+    const pct = (val / of * 100).toFixed(0) + '%';
+    return `<div class="cf-bar-row">
+      <div class="cf-bar-hdr"><div class="cf-bar-label"><span class="cf-bar-nome">${label}</span></div>
+        <div class="cf-bar-stats"><span><b>${val.toLocaleString('pt-BR')}</b></span><span>${pct}</span></div></div>
+      <div class="cf-bar-track"><div class="cf-bar-fill cf-fill-alc" style="width:${width}%"></div></div>
+    </div>`;
+  }).join('');
+  return `<div class="cf-guia-panel">${titleHtml}${rows}</div>`;
 }
 function cfRenderChartShell() {
   return `
@@ -2778,7 +2833,7 @@ function cfRenderBody() {
     if (e === 3) html += '</div>';
   }
   html += '</div>';
-  body.innerHTML = html + cfRenderGuia(cfOrigem) + cfRenderChartShell();
+  body.innerHTML = html + cfRenderGuia(cfOrigem) + cfRenderSeguro(cfOrigem) + cfRenderChartShell();
   cfRenderSemLinkBreakdown();
   const defaultEtapa = bnIdx >= 0 ? bnIdx : 7;
   const sel = document.getElementById('cfEtapaSelect');
@@ -2814,11 +2869,12 @@ async function refreshFunilClara() {
     document.getElementById('cfSemInteresseBody').style.display = 'none';
     document.getElementById('cfFunnelBody').innerHTML = '<div class="empty-state">Carregando funil...</div>';
     try {
-      const [diario, guia] = await Promise.all([
+      const [diario, guia, seguro] = await Promise.all([
         sbFetch(`clara_funil_diario?select=*&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}`),
         sbFetch(`clara_funil_guia_diario?select=*&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}`),
+        sbFetch(`clara_funil_seguro_diario?select=*&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}`),
       ]);
-      cfDiario = diario; cfGuia = guia; cfRangeKey = rangeKey; cfLeadsCache = {};
+      cfDiario = diario; cfGuia = guia; cfSeguro = seguro; cfRangeKey = rangeKey; cfLeadsCache = {};
     } catch (e) {
       document.getElementById('cfSummary').textContent = 'Indicadores indisponíveis';
       document.getElementById('cfTopline').textContent = 'Dados indisponíveis';
