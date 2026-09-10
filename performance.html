@@ -794,6 +794,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Antes disso o created_at do histórico de conversas não é confiável (ver
 // BRIEF_FUNIL_R2.md) — qualquer período pedido é grudado nesse piso.
 const CLARA_MIN_DATE = '2026-08-27';
+// A partir desta data, oferta (etapa 7) e link (etapa 8) passaram a ser
+// enviados juntos, quase no mesmo instante — confirmado medindo o evento
+// real link_enviado contra a mensagem de oferta (mediana de 3,5s de
+// diferença nesse período, contra ~2min/horas antes). Ver
+// dashboard/HISTORICO_REGUA.md. Só funde as duas barras quando o período
+// selecionado cai INTEIRO depois dessa data — período misto ou anterior
+// mantém as duas etapas separadas, como sempre foram.
+const CF_MERGE_OFERTA_LINK_MIN_DATE = '2026-09-08';
+function cfIsMerged() { return cfRangeFrom >= CF_MERGE_OFERTA_LINK_MIN_DATE; }
 // Marca literal de cada etapa (usada nos "?" e no rótulo de cada barra).
 const CF_ETAPAS = [
   { n:0, nome:'Respondeu ao Template',        regra:'o lead respondeu e nenhuma marca abaixo apareceu' },
@@ -2543,10 +2552,30 @@ function cfRenderBar(e, per, isBottleneck) {
     <div class="cf-bar-track"><div class="cf-bar-fill cf-fill-alc" style="width:${widthAlc}%"></div></div>
     <details class="cf-details"><summary>Ver detalhes</summary>
       <p>Conta quando ${cfEsc(info.regra)}.</p>
-      ${e === 9 ? '<p>A venda é atribuída ao dia em que o lead <b>conectou</b>, não ao dia do pagamento — por isso o número de um dia ainda sobe nos 3 dias seguintes, enquanto vendas continuam entrando pra esse grupo. O card "Vendas" da aba Métricas mostra o extrato pelo dia do pagamento; este número mostra a conversão daquele grupo de leads.</p>' : ''}
+      ${e === 9 ? '<p>Vendas atribuídas ao dia em que o lead <b>conectou</b>, não ao dia do pagamento. Por isso o número de um dia ainda sobe nos dias seguintes — 84% das vendas fecham em até 3 dias após a conexão. Na aba Métricas, a mesma venda aparece no dia em que o pagamento foi feito.</p>' : ''}
+      ${e === 8 ? '<p>Links atribuídos ao dia em que o lead <b>conectou</b>, não ao dia do envio. Mesma lógica da Venda: o número de um dia ainda sobe nos dias seguintes, porque o link pode ter sido enviado depois. Na aba Métricas, o mesmo link aparece no dia em que foi enviado.</p>' : ''}
       <p>Média de mensagens WhatsApp: <b>${mediaWa === null ? 'Indisponível' : mediaWa.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' mensagens'}</b>. Média das médias diárias recebidas, ponderada por pessoas que alcançaram esta etapa no período.</p>
       ${alc >= 5 ? `<button type="button" onclick="cfToggleLeads(${e})">Ver pessoas nesta etapa</button>` : ''}
       <div class="cf-lead-panel" id="cfLeads_${e}"></div>
+    </details></div>`;
+}
+function cfRenderMergedOfertaLink(per, isBottleneck) {
+  const alc = cfStageCount(7, per);
+  const alc9 = cfStageCount(9, per);
+  const passagem = alc9 !== null && alc > 0 ? alc9 / alc * 100 : null;
+  const widthAlc = Math.min(100, (alc || 0) / (per[0].alc || 1) * 100);
+  return `<div class="cf-bar-row ${isBottleneck ? 'cf-bottleneck' : ''}">
+    <div class="cf-bar-hdr">
+      <div class="cf-bar-label"><span class="cf-bar-n">7+8</span><span class="cf-bar-nome">Oferta + Link de pagamento</span>${isBottleneck ? '<span class="cf-gargalo-badge">GARGALO</span>' : ''}</div>
+      <div class="cf-stat"><span class="cf-stat-label">Alcançaram</span>${cfCount(alc)}</div>
+      <div class="cf-stat"><span class="cf-stat-label">Sem resposta &gt;24h</span><span aria-label="Dado indisponível">—</span></div>
+      <div class="cf-stat"><span class="cf-stat-label">Avançaram (%)</span>${passagem === null ? '—' : passagem.toLocaleString('pt-BR',{maximumFractionDigits:0})+'%'}</div>
+    </div>
+    <div class="cf-bar-track"><div class="cf-bar-fill cf-fill-alc" style="width:${widthAlc}%"></div></div>
+    <details class="cf-details"><summary>Ver detalhes</summary>
+      <p>A partir de 08/09/2026 a oferta da CDA ("41,06"/"R$ 397") e o link de pagamento passaram a ser enviados juntos, quase no mesmo instante — por isso aparecem como um único estágio neste período. Medido pelo evento real de envio do link: mediana de 3,5 segundos entre a oferta e o link nessa janela, contra minutos ou horas antes de 08/09 (ver dashboard/HISTORICO_REGUA.md).</p>
+      ${alc >= 5 ? `<button type="button" onclick="cfToggleLeads('merged78')">Ver pessoas nesta etapa</button>` : ''}
+      <div class="cf-lead-panel" id="cfLeads_merged78"></div>
     </details></div>`;
 }
 function cfRenderGuia(origem) {
@@ -2625,14 +2654,14 @@ async function cfToggleLeads(etapa) {
   try {
     let rows = cfLeadsCache[cacheKey];
     if (!rows) {
-      const filtroEtapa = etapa === 9 ? 'vendeu=eq.true' : `etapa_max=eq.${etapa}`;
+      const filtroEtapa = etapa === 9 ? 'vendeu=eq.true' : etapa === 'merged78' ? 'etapa_max=in.(7,8)' : `etapa_max=eq.${etapa}`;
       rows = await sbFetch(`clara_etapas_cache?select=telefone_chave,nome,url_chatwoot,parada,vendeu&origem=eq.${cfOrigem}&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}&${filtroEtapa}&order=ultima_msg.desc`);
       cfLeadsCache[cacheKey] = rows;
     }
     if (!rows.length) { panel.innerHTML = '<div class="empty-state">Nenhum lead encontrado.</div>'; return; }
     panel.innerHTML = `<div class="cf-lead-list">${rows.map(r => {
       const nome = r.nome && r.nome.trim() ? r.nome.trim() : 'Sem nome';
-      const badge = etapa === 9 ? '' : (r.parada
+      const badge = (etapa === 9 || etapa === 'merged78') ? '' : (r.parada
         ? '<span class="bool-badge nao cf-lead-badge">inatividade (legado)</span>'
         : '<span class="bool-badge sim cf-lead-badge">em andamento</span>');
       const link = r.url_chatwoot
@@ -2679,6 +2708,7 @@ function cfRenderBody() {
     Responderam: <b>${total.toLocaleString('pt-BR')}</b>
     <span class="cf-period-note">— período: ${fD(cfRangeFrom)} a ${fD(cfRangeTo)}, pela data em que a conversa começou${cfClamped ? ' · ajustado: sem dados confiáveis antes de 27/08/2026' : ''}</span>
     <details class="cf-help"><summary>Sobre os dados</summary>${CF_GENERAL_TOOLTIP}</details>
+    <p class="cf-note">Por que os números daqui podem não bater com a aba Métricas: aqui, a conversa inteira é contada no dia em que o lead conectou — mesmo que a venda ou o link tenham acontecido dias depois. Na aba Métricas, cada evento conta no dia em que aconteceu. No fechamento do mês os totais são os mesmos; só a distribuição por dia muda.</p>
   `;
   if (cfOrigem === 'sem_interesse') {
     cfRenderSemInteresse();
@@ -2695,8 +2725,10 @@ function cfRenderBody() {
   // (link → venda) fica de fora: com clara_vendas ainda vazia (ver doc,
   // seção 8), ela é sempre 0% e marcaria "gargalo" ali pra sempre, escondendo
   // o gargalo real da conversa (a oferta).
+  const merged = cfIsMerged();
   let bnIdx = -1, bnVal = Infinity;
   for (let e = 0; e <= 7; e++) {
+    if (merged && e === 7) continue; // 7→8 deixou de ser uma transição real (ver CF_MERGE_OFERTA_LINK_MIN_DATE)
     const cur = per[e], nxt = per[e + 1];
     if (cur.alc < 5) continue;
     const p = nxt.alc / cur.alc;
@@ -2705,7 +2737,9 @@ function cfRenderBody() {
   let html = `<details class="cf-help"><summary>Como ler os indicadores</summary><p>Pessoas que deixaram de responder e cuja última mensagem na conversa foi há mais de 24 horas.</p><p>Exatamente 24 horas não atende à condição. Uma resposta recebida retira a pessoa do indicador na próxima atualização. Não representa desistência confirmada. — significa dado indisponível: a fonte atual não fornece uma contagem validada de ausência de resposta.</p><p>Avançaram (%): pessoas que alcançaram a próxima etapa divididas pelas que alcançaram a etapa atual. Na última etapa ou sem base de cálculo, mostramos —. As barras douradas usam o total da primeira etapa como escala comum.</p></details>${cfConsolidacaoNote()}<div class="cf-funnel"><div class="cf-columns"><span>Etapa</span><span>Alcançaram</span><span>Sem resposta &gt;24h</span><span>Avançaram (%)</span></div>`;
   for (let e = 0; e <= 9; e++) {
     if (e === 1) html += '<div class="cf-qualif-box"><div class="cf-qualif-lbl">Qualificação</div>';
-    html += cfRenderBar(e, per, e === bnIdx);
+    if (merged && e === 8) { /* já renderizada junto com a 7 */ }
+    else if (merged && e === 7) html += cfRenderMergedOfertaLink(per, e === bnIdx);
+    else html += cfRenderBar(e, per, e === bnIdx);
     if (e === 3) html += '</div>';
   }
   html += '</div>';
