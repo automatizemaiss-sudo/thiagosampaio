@@ -453,6 +453,11 @@
   .cf-summary-card strong.cf-unavailable { font-size:18px; overflow-wrap:anywhere; }
   .cf-summary-card span { display:block; font-size:15px; color:#c1d0c6; margin-top:8px; }
   .cf-note, .cf-help { color:#c1d0c6; font-size:14px; line-height:1.6; margin-bottom:16px; }
+  .cf-desvio-wrap { margin: 8px 0 16px; }
+  .cf-desvio-list { display:flex; flex-wrap:wrap; gap:10px 20px; font-size:14px; color:#c1d0c6; }
+  .cf-desvio-list b { color:#EDE8D8; }
+  .cf-desvio-alerta { color:#ff8a7a; }
+  .cf-desvio-alerta b { color:#ff8a7a; }
   .cf-columns, .cf-funnel .cf-bar-hdr { display:grid; grid-template-columns:minmax(0,1fr) 110px 160px 120px; gap:16px; align-items:center; }
   .cf-columns { color:#c1d0c6; font-size:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
   .cf-columns span:not(:first-child), .cf-stat { text-align:right; }
@@ -2553,11 +2558,40 @@ function cfRenderBar(e, per, isBottleneck) {
     <details class="cf-details"><summary>Ver detalhes</summary>
       <p>Conta quando ${cfEsc(info.regra)}.</p>
       ${e === 9 ? '<p>Vendas atribuídas ao dia em que o lead <b>conectou</b>, não ao dia do pagamento. Por isso o número de um dia ainda sobe nos dias seguintes — 84% das vendas fecham em até 3 dias após a conexão. Na aba Métricas, a mesma venda aparece no dia em que o pagamento foi feito.</p>' : ''}
-      ${e === 8 ? '<p>Links atribuídos ao dia em que o lead <b>conectou</b>, não ao dia do envio. Mesma lógica da Venda: o número de um dia ainda sobe nos dias seguintes, porque o link pode ter sido enviado depois. Na aba Métricas, o mesmo link aparece no dia em que foi enviado.</p>' : ''}
+      ${e === 8 ? '<p>Links atribuídos ao dia em que o lead <b>conectou</b>, não ao dia do envio. Mesma lógica da Venda: o número de um dia ainda sobe nos dias seguintes, porque o link pode ter sido enviado depois. Na aba Métricas, o mesmo link aparece no dia em que foi enviado.</p><div class="cf-desvio-wrap" id="cfDesvio8"></div>' : ''}
       <p>Média de mensagens WhatsApp: <b>${mediaWa === null ? 'Indisponível' : mediaWa.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' mensagens'}</b>. Média das médias diárias recebidas, ponderada por pessoas que alcançaram esta etapa no período.</p>
       ${alc >= 5 ? `<button type="button" onclick="cfToggleLeads(${e})">Ver pessoas nesta etapa</button>` : ''}
       <div class="cf-lead-panel" id="cfLeads_${e}"></div>
     </details></div>`;
+}
+// Quebra de "viu a oferta mas não tem o link" por motivo (etapa_max=7,
+// ou seja, alcançou a oferta e não avançou pra 8) — objeção que virou
+// Seguro/Guia/follow-up não é link perdido, é o funil funcionando. Só a
+// última categoria (sem desvio nem follow-up) merece alarme de verdade.
+async function cfRenderSemLinkBreakdown() {
+  const el = document.getElementById('cfDesvio8');
+  if (!el) return;
+  el.textContent = 'Carregando quebra por motivo…';
+  try {
+    const rows = await sbFetch(`clara_etapas_cache?select=ofertou_seguro,ofertou_guia,marca_followup&origem=eq.${cfOrigem}&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}&etapa_max=eq.7`);
+    if (!rows.length) { el.innerHTML = ''; return; }
+    let seguro = 0, guia = 0, pausado = 0, semDesvio = 0;
+    rows.forEach(r => {
+      if (r.ofertou_seguro) seguro++;
+      else if (r.ofertou_guia) guia++;
+      else if (r.marca_followup) pausado++;
+      else semDesvio++;
+    });
+    el.innerHTML = `<p class="cf-note"><b>${rows.length}</b> viram a oferta e não têm o link da CDA — por quê:</p>
+      <div class="cf-desvio-list">
+        <span>Foi pro Seguro <b>${seguro}</b></span>
+        <span>Foi pro Guia <b>${guia}</b></span>
+        <span>Pausado / follow-up marcado <b>${pausado}</b></span>
+        <span${semDesvio > 0 ? ' class="cf-desvio-alerta"' : ''}>Sem desvio nem follow-up <b>${semDesvio}</b></span>
+      </div>`;
+  } catch (e) {
+    el.innerHTML = `<p class="cf-note">Erro ao carregar a quebra por motivo: ${cfEsc(e.message)}</p>`;
+  }
 }
 function cfRenderMergedOfertaLink(per, isBottleneck) {
   const alc = cfStageCount(7, per);
@@ -2574,6 +2608,7 @@ function cfRenderMergedOfertaLink(per, isBottleneck) {
     <div class="cf-bar-track"><div class="cf-bar-fill cf-fill-alc" style="width:${widthAlc}%"></div></div>
     <details class="cf-details"><summary>Ver detalhes</summary>
       <p>A partir de 08/09/2026 a oferta da CDA ("41,06"/"R$ 397") e o link de pagamento passaram a ser enviados juntos, quase no mesmo instante — por isso aparecem como um único estágio neste período. Medido pelo evento real de envio do link: mediana de 3,5 segundos entre a oferta e o link nessa janela, contra minutos ou horas antes de 08/09 (ver dashboard/HISTORICO_REGUA.md).</p>
+      <div class="cf-desvio-wrap" id="cfDesvio8"></div>
       ${alc >= 5 ? `<button type="button" onclick="cfToggleLeads('merged78')">Ver pessoas nesta etapa</button>` : ''}
       <div class="cf-lead-panel" id="cfLeads_merged78"></div>
     </details></div>`;
@@ -2744,6 +2779,7 @@ function cfRenderBody() {
   }
   html += '</div>';
   body.innerHTML = html + cfRenderGuia(cfOrigem) + cfRenderChartShell();
+  cfRenderSemLinkBreakdown();
   const defaultEtapa = bnIdx >= 0 ? bnIdx : 7;
   const sel = document.getElementById('cfEtapaSelect');
   sel.innerHTML = CF_ETAPAS.map(info => `<option value="${info.n}">${info.n} · ${cfEsc(info.nome)}</option>`).join('');

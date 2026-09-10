@@ -89,8 +89,53 @@ A diferença é gritante: depois da mudança, o link chega alguns segundos
 duas gravações quase simultâneas). Antes, a mediana era de minutos e a média
 inflada por casos de horas — etapas de fato separadas no processo antigo.
 
-**Pendente:** decidir e implementar a fusão visual das etapas 7 (Oferta) e 8
-(Link) no front para conversas com `dia >= '2026-09-08'`, mantendo as duas
-etapas separadas para conversas anteriores. Ainda não implementado — falta
-alinhar o desenho exato (ver conversa com o Matheus) antes de mexer no
-`performance.html`.
+**Implementado:** o front funde as etapas 7 e 8 numa barra só ("Oferta + Link
+de pagamento") quando o período selecionado cai **inteiro** em `>= 2026-09-08`.
+Período misto ou anterior mantém as duas etapas separadas, como sempre foram
+— decisão tomada pra não misturar os dois regimes na mesma barra agregada.
+
+---
+
+## r2.2 → r2.3 — regex da etapa 8 desatualizada + marcadores de desvio (Seguro/follow-up)
+
+**Data da mudança:** 2026-09-10.
+
+**O que era o problema:** depois de corrigir o join da `ev` (entrada acima),
+a cobertura de link ainda parecia baixa — porque a marca de **texto** da
+etapa 8 só reconhecia `thiagosampaionutricao.com/pay`, e o link de pagamento
+real migrou pra `go.thiagosampaionutricao.com/pay` (e a variante com cupom,
+`estrategia-cda-cupom`). A dupla verificação (join quebrado + regex
+desatualizada) escondeu o problema duas vezes seguidas — cada correção
+revelava que a cobertura real era maior do que a anterior sugeria.
+
+**A correção:** `m8_link_cda` passou a reconhecer
+`go.thiagosampaionutricao.com/pay` e `estrategia-cda-cupom`, mantendo a
+mesma exclusão implícita de sempre para os domínios de pós-compra, Guia e
+Seguro (eles usam caminhos próprios, nunca bateram nessa regex e não devem
+bater).
+
+**Efeito medido** (`principal`, 08/09–10/09, com o join já corrigido nas
+duas medições):
+
+| | Regex antiga | Regex nova |
+|---|---|---|
+| Cobertura oferta → link | ~89% | ~95% (98 de 103) |
+
+**Também descoberto no processo (Causa 3 do brief) — não é bug de banco, é
+erro de metodologia de medição:** comparar "quantos viram a oferta" contra
+"quantos receberam o link" sem excluir quem foi desviado pra outro caminho
+sempre vai parecer pior do que é. Quem objeta valor/prazo e recebe o Seguro
+Proteção de Preço, ou é redirecionado pro Guia Nutricional, ou só teve um
+follow-up marcado pra depois — não é link "perdido", é o funil funcionando.
+Por isso a view ganhou dois marcadores novos (colunas ao final, não mudam
+`etapa_max`):
+
+- `ofertou_seguro` — mensagem contém `cl-seguro-protecao-preco` (o checkout
+  do Seguro Proteção de Preço; ver `dashboard/BRIEF_FUNIL_SEGURO_PROTECAO.md`
+  pro sub-funil completo desse produto, fora do escopo desta entrada).
+- `marca_followup` — evento real `marca_followup` em `clara_eventos` (mesma
+  CTE `ev`, já com o telefone normalizado).
+
+No período medido, dos 5 que viram a oferta e não têm link: 1 Seguro, 1
+Guia, 1 follow-up marcado, e **2 sem nenhum desvio** — são esses 2, não os 5,
+que merecem atenção como possível falha real.
