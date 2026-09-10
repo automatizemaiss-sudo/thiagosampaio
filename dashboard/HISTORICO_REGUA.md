@@ -139,3 +139,33 @@ Por isso a view ganhou dois marcadores novos (colunas ao final, não mudam
 No período medido, dos 5 que viram a oferta e não têm link: 1 Seguro, 1
 Guia, 1 follow-up marcado, e **2 sem nenhum desvio** — são esses 2, não os 5,
 que merecem atenção como possível falha real.
+
+---
+
+## r2.3 → r2.4 — `ofertou_seguro` corrigido (estava marcando o link, não a oferta) + Funil do Seguro
+
+**Data da mudança:** 2026-09-10.
+
+**O que era o problema:** a entrada anterior criou uma coluna `ofertou_seguro`
+que na prática guardava se o **link** do Seguro (`cl-seguro-protecao-preco`)
+tinha sido enviado — não se o Seguro tinha sido **oferecido por texto**. Não
+tinha marcador nenhum pra oferta verbal, então não dava pra montar um funil
+Ofertou → Link → Venda como o do Guia.
+
+**Investigação:** medido no banco, a Clara oferece o Seguro por texto
+("seguro" + "49,90") bem mais vezes do que manda o link de fato — 242
+sessões com a menção verbal contra 44 com o link real (18% de conversão
+oferta→link, mesmo padrão comportamental do Guia: oferecer não implica
+mandar o link na mesma hora). Conferi manualmente uma amostra da menção
+verbal pra garantir que não é falso positivo — são mensagens genuínas
+("Seguro Proteção de Vaga por R$49,90... quer que eu te envie o link?").
+
+**A correção:** `ofertou_seguro` passou a ser a menção verbal; o link ganhou
+coluna própria, `link_seguro`. Criado `vw_funil_seguro_diario_r2` +
+`clara_funil_seguro_diario`, mesmo padrão do Guia, e um painel "FUNIL DO
+SEGURO PROTEÇÃO DE VAGA" no front, ao lado do painel do Guia.
+
+**Também:** a quebra por motivo da etapa 8 (entrada anterior) virou clicável
+— cada categoria (Seguro/Guia/Pausado/Sem desvio) abre a lista de quem está
+nela, com nome, telefone e link do Chatwoot, sem precisar de uma nova
+consulta (usa os mesmos dados já carregados pra contar).
