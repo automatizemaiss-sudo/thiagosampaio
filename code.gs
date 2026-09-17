@@ -114,6 +114,10 @@
  *    /exec?sheet=followups      → follow-ups (legado)
  *    /exec?sheet=roi            → ROI mensal isolado (legado/depuração)
  *    /exec?sheet=waba           → funis por número WABA (legado/depuração)
+ *    /exec?sheet=leads_template → telefone × template_name da aba CONEXÃO,
+ *                                 pra popular a tabela clara_leads no
+ *                                 Supabase (funil "Resgate CG7" e origem do
+ *                                 funil principal — ver getLeadsTemplate()).
  *
  *  POST /exec  body: {"action":"classificarVendas"}
  *    → classifica duplicatas de venda (ver classificarVendas()).
@@ -232,6 +236,9 @@ function doGet(e) {
         break;
       case 'roi':
         payload = getRoi(makeCtx());
+        break;
+      case 'leads_template':
+        payload = getLeadsTemplate(makeCtx());
         break;
       default:
         payload = { ok: false, msg: 'Parâmetro "sheet" desconhecido: ' + sheetParam };
@@ -600,6 +607,34 @@ function countConexaoPorDia(ctx) {
     });
     return porData;
   });
+}
+
+// ───────────────────────────────────────────────
+// 1c-bis) LEADS × TEMPLATE — aba CONEXÃO, coluna template_name
+// ───────────────────────────────────────────────
+// Endpoint de apoio pro funil "Resgate CG7" (Supabase): dá o template_name
+// do disparo por telefone, pra virar a tabela clara_leads lá. Uma linha por
+// telefone — mantém a ocorrência mais antiga (o disparo original, não um
+// reenvio). Não usa cache do dashboard (é lido sob demanda, raramente).
+function getLeadsTemplate(ctx) {
+  const porTelefone = {};
+  ctx.rows(SHEETS.CONEXAO).forEach(r => {
+    const telefone = fieldStr(r['telefone']);
+    if (!telefone) return;
+    const diaConexao = toISODate(r['dia_de_conexao'] || r['criado_em']);
+    const criadoEm = toISODate(r['criado_em']);
+    const templateName = fieldStr(r['template_name']);
+    const atual = porTelefone[telefone];
+    if (!atual || (diaConexao && atual.dia_de_conexao && diaConexao < atual.dia_de_conexao)) {
+      porTelefone[telefone] = {
+        telefone,
+        template_name: templateName || null,
+        dia_de_conexao: diaConexao,
+        criado_em: criadoEm,
+      };
+    }
+  });
+  return Object.values(porTelefone);
 }
 
 // ───────────────────────────────────────────────

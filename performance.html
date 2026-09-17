@@ -758,6 +758,7 @@
       <button class="seg-tab active" data-origem="principal">PRINCIPAL</button>
       <button class="seg-tab" data-origem="presente_gratuito">PRESENTE GRATUITO</button>
       <button class="seg-tab" data-origem="sem_interesse">SEM INTERESSE</button>
+      <button class="seg-tab" data-origem="resgate_cg7">RESGATE CG7</button>
     </div>
     <div id="cfSummary" aria-live="polite"></div>
     <div id="cfFunnelBody"><div class="empty-state">Carregando funil...</div></div>
@@ -906,7 +907,19 @@ let cfClamped      = false;
 let cfOrigem       = 'principal';
 let cfLeadsCache   = {};
 let cfSemInteresseRows = [];
+// Resgate CG7 — régua própria (cg7_v1), isolada do funil principal. Carregado
+// só quando essa sub-aba é aberta (não faz parte do fetch principal).
+let cfCg7Diario    = [];
+let cfCg7RangeKey  = '';
+let cfCg7SubFiltro = 'todos'; // 'todos' | 'nao_assistiu' | 'saiu_no_meio'
 let cfChart        = null;
+let cfCg7Chart      = null;
+const CF_CG7_ETAPAS = [
+  { n:0, nome:'Sem qualificação',       regra:'recebeu o template e ainda não avançou' },
+  { n:1, nome:'Apresentação do CG7',    regra:'a Clara mandou o link do CG7 ou mencionou "R$ 37"' },
+  { n:2, nome:'Migrou para a CDA',      regra:'a Clara escreveu "41,06", "R$ 397" ou "15,20" (mesma marca da oferta da CDA no funil principal)' },
+  { n:3, nome:'Venda',                  regra:'o telefone estar presente na clara_vendas' },
+];
 // Cache do card "Mensagens da IA" (aba Métricas/GERAL) — mesmo Supabase do
 // Funil Clara, mas um único agregado do período (sem quebra por etapa/origem).
 let iaMsgsCache = { rangeKey: '' };
@@ -2732,6 +2745,169 @@ function cfDrawChart(origem, etapa) {
     },
   });
 }
+// ════════════════════════════════════════════
+// RESGATE CG7 — régua própria (cg7_v1), isolada do funil principal.
+// Origem identificada pela mensagem literal do template de disparo (não
+// pela resposta do lead — os botões são genéricos "Sim, podemos"/"Sem
+// interesse" em todos os templates novos, então a resposta não distingue).
+// ════════════════════════════════════════════
+async function cfFetchCg7(rangeKey) {
+  if (cfCg7RangeKey === rangeKey) return;
+  cfCg7Diario = await sbFetch(`clara_funil_resgate_cg7_diario?select=*&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}`);
+  cfCg7RangeKey = rangeKey;
+}
+function cfCg7Agg() {
+  const per = {};
+  for (let e = 0; e <= 3; e++) per[e] = { alc: 0, trav: 0 };
+  cfCg7Diario.forEach(r => {
+    if (cfCg7SubFiltro !== 'todos' && r.origem_template !== cfCg7SubFiltro) return;
+    if (!(r.etapa in per)) return;
+    per[r.etapa].alc  += Number(r.alcancaram) || 0;
+    per[r.etapa].trav += Number(r.travaram) || 0;
+  });
+  return per;
+}
+function cfSetCg7SubFiltro(v) { cfCg7SubFiltro = v; cfRenderResgateCg7(); }
+async function cfRenderResgateCg7() {
+  const body = document.getElementById('cfFunnelBody');
+  body.style.display = '';
+  const rangeKey = cfRangeFrom + '|' + cfRangeTo;
+  if (cfCg7RangeKey !== rangeKey) {
+    document.getElementById('cfTopline').textContent = 'Carregando…';
+    body.innerHTML = '<div class="empty-state">Carregando Resgate CG7...</div>';
+    try { await cfFetchCg7(rangeKey); }
+    catch (e) { body.innerHTML = `<div class="empty-state">Erro ao carregar o Resgate CG7: ${cfEsc(e.message)}</div>`; return; }
+  }
+  const per = cfCg7Agg();
+  const total = per[0].alc;
+  document.getElementById('cfTopline').innerHTML = `
+    Receberam o template: <b>${total.toLocaleString('pt-BR')}</b>
+    <span class="cf-period-note">— período: ${fD(cfRangeFrom)} a ${fD(cfRangeTo)}, pela data em que a conversa começou${cfClamped ? ' · ajustado: sem dados confiáveis antes de 27/08/2026' : ''}</span>
+    <details class="cf-help"><summary>Sobre este funil</summary>Fluxo de resgate pra quem se inscreveu na live e não assistiu, ou saiu antes do fim — recebe uma oferta separada, o CG7 (Controle Glicêmico em 7 Dias, R$ 37). Régua própria, isolada do funil principal. A origem é identificada pela mensagem do template de disparo, não pela resposta do lead — clicar em "Sem interesse" aqui não vira o "Sem Interesse" genérico do funil principal.</details>
+  `;
+  if (total === 0) {
+    body.innerHTML = '<div class="empty-state">Nenhum lead recebeu os templates do Resgate CG7 neste período ainda.</div>';
+    return;
+  }
+  const filtroHtml = `<div class="seg-tabs" style="margin-bottom:6px;">
+    <button class="seg-tab ${cfCg7SubFiltro === 'todos' ? 'active' : ''}" onclick="cfSetCg7SubFiltro('todos')">TODOS</button>
+    <button class="seg-tab ${cfCg7SubFiltro === 'nao_assistiu' ? 'active' : ''}" onclick="cfSetCg7SubFiltro('nao_assistiu')">NÃO ASSISTIU</button>
+    <button class="seg-tab ${cfCg7SubFiltro === 'saiu_no_meio' ? 'active' : ''}" onclick="cfSetCg7SubFiltro('saiu_no_meio')">SAIU NO MEIO</button>
+  </div>`;
+  let bnIdx = -1, bnVal = Infinity;
+  for (let e = 0; e <= 2; e++) {
+    const cur = per[e], nxt = per[e + 1];
+    if (cur.alc < 5) continue;
+    const p = nxt.alc / cur.alc;
+    if (p < bnVal) { bnVal = p; bnIdx = e; }
+  }
+  let html = filtroHtml + '<div class="cf-funnel"><div class="cf-columns"><span>Etapa</span><span>Alcançaram</span><span>Travaram</span><span>Avançaram (%)</span></div>';
+  for (let e = 0; e <= 3; e++) html += cfRenderCg7Bar(e, per, e === bnIdx);
+  html += '</div>' + cfRenderChartShellCg7();
+  body.innerHTML = html;
+  cfDrawCg7Chart(bnIdx >= 0 ? bnIdx : 1);
+}
+function cfRenderCg7Bar(e, per, isBottleneck) {
+  const info = CF_CG7_ETAPAS[e];
+  const cur = per[e], nxt = per[e + 1];
+  const alc = cur.alc, trav = cur.trav;
+  const passagem = nxt && alc > 0 ? nxt.alc / alc * 100 : null;
+  const widthAlc = Math.min(100, alc / (per[0].alc || 1) * 100);
+  const alcTxt  = (alc > 0 && alc < 5)  ? '&lt; 5' : alc.toLocaleString('pt-BR');
+  const travTxt = (trav > 0 && trav < 5) ? '&lt; 5' : trav.toLocaleString('pt-BR');
+  const clickable = alc >= 5;
+  return `<div class="cf-bar-row ${isBottleneck ? 'cf-bottleneck' : ''}">
+    <div class="cf-bar-hdr" ${clickable ? `onclick="cfToggleCg7Leads(${e})" style="cursor:pointer;"` : ''}>
+      <div class="cf-bar-label"><span class="cf-bar-n">${e}</span><span class="cf-bar-nome">${cfEsc(info.nome)}</span>${isBottleneck ? '<span class="cf-gargalo-badge">GARGALO</span>' : ''}</div>
+      <div class="cf-stat"><span class="cf-stat-label">Alcançaram</span>${alcTxt}</div>
+      <div class="cf-stat"><span class="cf-stat-label">Travaram</span><span style="color:var(--danger)">${travTxt}</span></div>
+      <div class="cf-stat"><span class="cf-stat-label">Avançaram (%)</span>${passagem === null ? '—' : passagem.toFixed(0) + '%'}</div>
+    </div>
+    <div class="cf-bar-track"><div class="cf-bar-fill cf-fill-alc" style="width:${widthAlc}%"></div></div>
+    <details class="cf-details"><summary>Ver detalhes</summary>
+      <p>Conta quando ${cfEsc(info.regra)}.</p>
+      ${e === 3 ? '<p>Venda atribuída ao dia em que o lead conectou, não ao dia do pagamento — mesma lógica do funil principal.</p>' : ''}
+      ${clickable ? `<button type="button" onclick="cfToggleCg7Leads(${e})">Ver pessoas nesta etapa</button>` : ''}
+      <div class="cf-lead-panel" id="cfCg7Leads_${e}"></div>
+    </details>
+  </div>`;
+}
+async function cfToggleCg7Leads(etapa) {
+  const panel = document.getElementById('cfCg7Leads_' + etapa);
+  if (!panel) return;
+  const wasOpen = panel.classList.contains('open');
+  document.querySelectorAll('.cf-lead-panel.open').forEach(p => p.classList.remove('open'));
+  if (wasOpen) return;
+  panel.classList.add('open');
+  panel.innerHTML = '<div class="empty-state">Carregando leads...</div>';
+  const cacheKey = `cg7|${cfCg7SubFiltro}|${etapa}|${cfRangeFrom}|${cfRangeTo}`;
+  try {
+    let rows = cfLeadsCache[cacheKey];
+    if (!rows) {
+      const filtroEtapa = etapa === 3 ? 'vendeu=eq.true' : `etapa_max=eq.${etapa}`;
+      const filtroSub = cfCg7SubFiltro !== 'todos' ? `&origem_template=eq.${cfCg7SubFiltro}` : '';
+      rows = await sbFetch(`clara_resgate_cg7_cache?select=telefone_chave,nome,url_chatwoot,parada,vendeu,origem_template&dia=gte.${cfRangeFrom}&dia=lte.${cfRangeTo}&${filtroEtapa}${filtroSub}&order=dia.desc`);
+      cfLeadsCache[cacheKey] = rows;
+    }
+    if (!rows.length) { panel.innerHTML = '<div class="empty-state">Nenhum lead encontrado.</div>'; return; }
+    panel.innerHTML = `<div class="cf-lead-list">${rows.map(r => {
+      const nome = r.nome && r.nome.trim() ? r.nome.trim() : 'Sem nome';
+      const sub = r.origem_template === 'nao_assistiu' ? 'não assistiu' : 'saiu no meio';
+      const link = r.url_chatwoot
+        ? `<a href="${cfEsc(r.url_chatwoot)}" target="_blank" rel="noopener" class="cf-chat-link">Chatwoot ↗</a>`
+        : `<span class="cf-chat-link disabled">sem link</span>`;
+      return `<div class="cf-lead-row"><span class="cf-lead-name">${cfEsc(nome)}</span><span class="cf-lead-fone">${cfEsc(cfFone(r.telefone_chave))}</span><span class="bool-badge sim cf-lead-badge">${sub}</span>${link}</div>`;
+    }).join('')}</div>`;
+  } catch (e) {
+    panel.innerHTML = `<div class="empty-state">Erro ao carregar leads: ${cfEsc(e.message)}</div>`;
+  }
+}
+function cfRenderChartShellCg7() {
+  return `<div class="chart-panel">
+    <div class="chart-header"><div class="chart-title">EVOLUÇÃO DIÁRIA — RESGATE CG7</div><select id="cfCg7EtapaSelect" class="cf-etapa-select"></select></div>
+    <div class="chart-body"><canvas id="cfCg7LineChart"></canvas></div>
+  </div>`;
+}
+function cfDrawCg7Chart(defaultEtapa) {
+  const sel = document.getElementById('cfCg7EtapaSelect');
+  sel.innerHTML = CF_CG7_ETAPAS.map(info => `<option value="${info.n}">${info.n} · ${cfEsc(info.nome)}</option>`).join('');
+  sel.value = String(defaultEtapa);
+  const draw = () => {
+    const etapa = Number(sel.value);
+    const porDia = {};
+    cfCg7Diario.forEach(r => {
+      if (r.etapa !== etapa) return;
+      if (cfCg7SubFiltro !== 'todos' && r.origem_template !== cfCg7SubFiltro) return;
+      if (!porDia[r.dia]) porDia[r.dia] = { dia: r.dia, alcancaram: 0, travaram: 0 };
+      porDia[r.dia].alcancaram += Number(r.alcancaram) || 0;
+      porDia[r.dia].travaram   += Number(r.travaram) || 0;
+    });
+    const list = Object.values(porDia).sort((a, b) => a.dia.localeCompare(b.dia));
+    const labels  = list.map(r => fD(r.dia));
+    const alcData = list.map(r => r.alcancaram);
+    const travData= list.map(r => r.travaram);
+    if (cfCg7Chart) cfCg7Chart.destroy();
+    cfCg7Chart = new Chart(document.getElementById('cfCg7LineChart').getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets: [
+        { label: 'Alcançaram', data: alcData, borderColor: '#C4A96A', backgroundColor: '#C4A96A22', borderWidth: 2, tension: 0.3, pointRadius: list.length > 40 ? 0 : 3, pointHoverRadius: 5 },
+        { label: 'Travaram',   data: travData, borderColor: '#C0392B', backgroundColor: '#C0392B22', borderWidth: 2, tension: 0.3, pointRadius: list.length > 40 ? 0 : 3, pointHoverRadius: 5 },
+      ]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: true, position: 'bottom', labels: { color: '#9FB3A4', font: { family: 'JetBrains Mono', size: 10 }, boxWidth: 10, padding: 12 } },
+          tooltip: { backgroundColor: '#17231C', borderColor: '#33453A', borderWidth: 1, titleColor: '#EDE8D8', bodyColor: '#B7C2B9', padding: 12 } },
+        scales: {
+          x: { ticks: { color: '#5C6B61', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { beginAtZero: true, ticks: { color: '#9FB3A4', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        },
+      },
+    });
+  };
+  sel.addEventListener('change', draw);
+  draw();
+}
 async function cfToggleLeads(etapa) {
   const panel = document.getElementById('cfLeads_' + etapa);
   if (!panel) return;
@@ -2791,6 +2967,11 @@ async function cfRenderSemInteresse() {
   }
 }
 function cfRenderBody() {
+  if (cfOrigem === 'resgate_cg7') {
+    document.getElementById('cfSemInteresseBody').style.display = 'none';
+    cfRenderResgateCg7();
+    return;
+  }
   const per = cfAggEtapas(cfOrigem);
   const total = per[0].alc;
   cfRenderSummary(per);
