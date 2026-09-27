@@ -1,0 +1,81 @@
+<div class="conversation-analysis"> <section> <h2>Principais objeções</h2>
+<div class="item">
+  <h3>1. Confirmação de compra ou parabenização sem pagamento</h3>
+  <p><strong>Descrição:</strong> A IA tomou um "Sim", "Ok" ou "Não tenho dúvidas" como compra concluída e enviou a parabenização de pós-compra da CDA com os links de boas-vindas. Também confirmou pagamentos sem comprovante e aceitou um produto que ela desconhece ("Desafio do Doce").</p>
+  <p><strong>Frequência:</strong> Cerca de 8 casos: Edilaine, Erondina, Idelma, Cloe, Domerina, Elizabeth (5582999666499), Claudia (CG7), Mariângela e Carmen, que recebeu a parabenização da CDA depois de comprar o CG7.</p>
+  <p><strong>Exemplo:</strong> Cloe respondeu "Sim" à pergunta de fechamento e recebeu "Parabéns pela sua decisão... Direcionamento inicial". Depois veio o follow-up "precisa de ajuda para finalizar?" e ela respondeu "Eu não tenho condições agora". Domerina recebeu a parabenização e em seguida escreveu "So n estou com condições no momento".</p>
+  <p><strong>Impacto:</strong> É um erro grave. Confunde a lead, pode gerar registro falso de venda no funil e tira credibilidade do atendimento.</p>
+</div>
+
+<div class="item">
+  <h3>2. Perguntas repetidas e loops</h3>
+  <p><strong>Descrição:</strong> A IA repete a mesma pergunta quando a lead já respondeu ou quando a mensagem chega duplicada. As mais repetidas são a de qualificação, "o que mais te preocupa" e "você lembra do sorteio". Em alguns casos a lista de opções foi reenviada até 7 vezes. A IA também repete ofertas e despedidas idênticas.</p>
+  <p><strong>Frequência:</strong> Muito alta, em cerca de 60 conversas.</p>
+  <p><strong>Exemplo:</strong> Carmen (5585982258625) recebeu a pergunta de diagnóstico e de exames 6 vezes seguidas. Cristina (5592984283436) recebeu "Medo das complicações / Depender de remédio / Dificuldade pra emagrecer..." a cada exame que enviava. Cássia perguntou duas vezes "O de 12x 42 é para todos ou para as 03 do sorteio?" e recebeu duas explicações genéricas.</p>
+  <p><strong>Impacto:</strong> Dá a sensação de que a lead não está sendo ouvida e deixa claro que é um robô, o que aumenta o cansaço e o abandono.</p>
+</div>
+
+<div class="item">
+  <h3>3. Informação inventada ou inconsistente (produto e preço)</h3>
+  <p><strong>Descrição:</strong> A lista da CDA muda em quase toda conversa, com itens inventados como "reuniões online ao vivo", "grupo de apoio", "lista de compras adaptada", "aprovado pelo CFN" e "consulta individual". Aparecem preços que não existem no prompt: "na live estava por R$ 997", "Guia Nutricional 12x R$ 15,20", CG7 riscado ora a R$ 97, ora a R$ 197, ora a R$ 591. A IA também inventou referências de exames: B12 ideal acima de 500, zinco acima de 1,0, insulina ideal "2 a 6" ou "2 a 8" e glicada ideal "até 5,1". Um follow-up saiu com o placeholder sem preencher: "NOME, o guia...".</p>
+  <p><strong>Frequência:</strong> Cerca de 50 ocorrências espalhadas.</p>
+  <p><strong>Exemplo:</strong> Para Célia, glicada de 6,5 e glicemia de 106 viraram "mesmo que ainda não seja considerado diabetes pelo laboratório", quando 6,5 já é o critério diagnóstico. Maria (5582999960358) ouviu que a glicada de 5,2 estava acima do ideal de 5,1, contradizendo a faixa de 4,5 a 5,4 usada em outras conversas.</p>
+  <p><strong>Impacto:</strong> Traz risco de promessa indevida, gera desconfiança quando a lead compara com o checkout e cria risco clínico e de compliance.</p>
+</div>
+
+<div class="item">
+  <h3>4. Link do boleto não enviado ("já pedi pro time comercial")</h3>
+  <p><strong>Descrição:</strong> A lead aceitou o boleto e a IA disse que o time comercial ia emitir, em vez de mandar o link de boleto disponível. O link só chegou horas ou um dia depois, enviado por um humano.</p>
+  <p><strong>Frequência:</strong> Cerca de 6 casos: Flávio, Ionice, Elza, Laudelina, Dulce e Erika.</p>
+  <p><strong>Exemplo:</strong> "Perfeito, Flávio! Já pedi pro nosso time comercial emitir o seu boleto..." e o link só foi enviado 13 horas depois. Laudelina acabou comprando o CG7 em vez da CDA.</p>
+  <p><strong>Impacto:</strong> Perde o momento da decisão e cria atrito por causa da espera.</p>
+</div>
+
+<div class="item">
+  <h3>5. Degraus da oferta pulados ou misturados</h3>
+  <p><strong>Descrição:</strong> A IA ofereceu boleto e CG7 na mesma mensagem. Ofereceu boleto para quem nem tinha visto o preço, como Angela, que só disse "Um momento não dá". Perguntou "valor ou momento?" várias vezes. Apresentou o Pix de R$ 397 por iniciativa própria. Mandou o link do CG7 sem preparação e depois perguntou "Quer que eu envie o link novamente?", frase que o prompt proíbe.</p>
+  <p><strong>Frequência:</strong> Cerca de 20 conversas.</p>
+  <p><strong>Exemplo:</strong> "Sem cartão a gente ainda tem caminho, Claudilene. Consigo emitir em 2x de R$ 197 no boleto... Ou, se o total é que não cabe agora, tenho um caminho mais simples" (boleto e CG7 juntos). Para Denise, a pergunta "é o valor ou o momento?" foi repetida três vezes.</p>
+  <p><strong>Impacto:</strong> A IA se atrapalha com o preço, a lead recebe opções demais e a percepção de valor cai.</p>
+</div>
+
+<div class="item">
+  <h3>6. Follow-ups automáticos insistentes, com falsa urgência ou constrangimento</h3>
+  <p><strong>Descrição:</strong> A sequência "não deve durar muito tempo, MESMO! Já estão garantindo as últimas 😬", "essa é a última vez que venho te lembrar" e "entendi que não faz sentido pra você ter mais de 80% de desconto. É isso mesmo?" foi enviada até para quem ainda não tinha visto oferta nenhuma. Também foi para autorresponders e para quem tinha dito que mandaria os exames depois.</p>
+  <p><strong>Frequência:</strong> Presente na maioria das conversas sem resposta, cerca de 70.</p>
+  <p><strong>Exemplo:</strong> Fábio respondeu com a autorresposta da MEDIVET e recebeu "eu sei que no início você mencionou não ter interesse..." e depois "entendi que não faz sentido pra você essa condição especial". Para Patrícia, a IA escreveu "a condição que mencionei na aula do Dr. Thiago", atribuindo a ela algo que ela nunca disse.</p>
+  <p><strong>Impacto:</strong> Soa agressivo e artificial. A escassez sem data fere a regra de escassez natural e há risco de denúncia ou bloqueio do número.</p>
+</div>
+
+<div class="item">
+  <h3>7. Autorresposta de empresa tratada como lead</h3>
+  <p><strong>Descrição:</strong> Em parte dos casos a IA seguiu o roteiro de venda diante de mensagem automática de empresa. Aconteceu com MEDIVET, a psicóloga Patrícia, o Ateliê Lara Artes e a Josilene com "agradece seu contato". Em outros casos ela fez a verificação correta ("seria por esse número mesmo?").</p>
+  <p><strong>Frequência:</strong> Cerca de 6 falhas, em cerca de 20 autorrespostas.</p>
+  <p><strong>Exemplo:</strong> Para a autorresposta do Ateliê Lara Artes, a IA respondeu "Oi Odete... você está buscando ajuda pra controlar o açúcar no sangue...". Para a psicóloga Patrícia, respondeu com a pergunta de qualificação.</p>
+  <p><strong>Impacto:</strong> Gera mensagens sem sentido para empresas e polui as métricas do funil.</p>
+</div>
+
+<div class="item">
+  <h3>8. Falha de encaminhamento em casos clínicos e de vulnerabilidade</h3>
+  <p><strong>Descrição:</strong> Casos que pedem nutricionista ou humano seguiram na venda: doença renal crônica (Fatima, Bernadete, Elza), pé amputado com necrose (Dejair), depressão e golpe (Alenice). O caso mais grave é o de Liduina, que relatou violência doméstica, desmaio e sangramento. A IA seguiu empurrando o link do CG7 por horas e só depois mandou o 192 e o 190, sem handoff. Com Andréa, a IA deu orientação nutricional individual ("dicas simples") e prometeu contato daqui a meses.</p>
+  <p><strong>Frequência:</strong> Cerca de 10 conversas.</p>
+  <p><strong>Exemplo:</strong> Liduina contou que estava sendo ameaçada com faca e sem dinheiro. Na mesma conversa a IA mandou três mensagens de passo a passo para pagar o Pix do CG7. Para Dejair, que enviou fotos do pé amputado, a resposta foi a oferta da CDA com o link.</p>
+  <p><strong>Impacto:</strong> Traz risco ético, de compliance e de reputação. Passa a impressão de insensibilidade e prioridade na venda.</p>
+</div>
+
+<div class="item">
+  <h3>9. Mensagens longas demais, várias seguidas e frases proibidas</h3>
+  <p><strong>Descrição:</strong> A IA manda blocos de 10 a 20 linhas com listas, travessão (—) e as frases proibidas "fico à disposição", "é só me chamar" e "o link fica aí". Mensagens idênticas saem duplicadas: Flávio e Nilza receberam a mesma mensagem duas vezes e Liduina recebeu 7 balões seguidos. As despedidas entram em loop quando a lead responde "Obrigada" várias vezes.</p>
+  <p><strong>Frequência:</strong> Muito alta, em mais de 100 mensagens.</p>
+  <p><strong>Exemplo:</strong> Para Adriana, depois de ela contar que o marido estava na emergência, a IA escreveu "o link já está aí acima pra você olhar com calma, sem compromisso". Com Diva, a IA trocou 8 despedidas.</p>
+  <p><strong>Impacto:</strong> A leitura fica cansativa para o público de 50 a 70 anos e o tom fica robótico.</p>
+</div>
+
+<div class="item">
+  <h3>10. Promessas clínicas e enquadramento indevido</h3>
+  <p><strong>Descrição:</strong> A IA fala em "reduzir a necessidade de medicamentos", "reverter muitos riscos", "tratar a causa", "destravar o metabolismo" e "vai subir isso aqui" (sobre o formigamento). Também diz que a CDA ajuda "na flacidez da pele" e em "orientações sobre uso de chás". Chama homens de "sorteadas".</p>
+  <p><strong>Frequência:</strong> Cerca de 30 conversas.</p>
+  <p><strong>Exemplo:</strong> "A condição especial... te ajuda também nessa questão da pele" (Diná). "Em muitos casos, até reduzir a necessidade de medicamentos" (Patrícia, Leonora e outras).</p>
+  <p><strong>Impacto:</strong> Traz risco regulatório e cria expectativas que o produto não garante.</p>
+</div>
+</section> </div>
