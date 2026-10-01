@@ -782,12 +782,8 @@
 // ════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════
-// ⚠️ Substitua pela URL do seu novo Apps Script (Implantar > Nova implantação > App da Web)
-// gerado a partir do arquivo Code.gs fornecido junto com este dashboard,
-// vinculado à planilha "dados_performance_automacao_tsnutri".
-const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxVjWmznwN1lAofCfVI-2uCLwxqG7gQECv-7qHT3VzzkP0tZYFX_2bg0dZah0QKmDo/exec';
 // ════════════════════════════════════════════
-// FUNIL CLARA (r2) — lido direto do Supabase, sem passar pelo Apps Script.
+// SUPABASE — todas as abas leem direto do banco (funil Clara e views dash_*).
 // ⚠️ Chave anon já é pública hoje (embutida no restante do projeto n8n/dashboard)
 // e, no banco atual, tem SELECT liberado nas tabelas abaixo — ver aviso no
 // final deste arquivo sobre travar os privilégios dela nas demais tabelas.
@@ -1180,45 +1176,788 @@ function getPctColor(key, value) {
   return 'color: var(--text);';
 }
 // ════════════════════════════════════════════
-// FETCH — UMA ÚNICA REQUISIÇÃO
+// FETCH — Supabase (views dash_*)
 // ════════════════════════════════════════════
-// A versão anterior disparava 8 fetch() SIMULTÂNEOS para o mesmo /exec
-// (um por aba). Cada /exec do Apps Script responde com um redirect 302
-// para googleusercontent.com, e com muitas chamadas concorrentes esse
-// redirect engasga: a execução conclui no lado do Google, mas a resposta
-// nunca chega no navegador e o fetch() fica pendurado — sem resolver nem
-// rejeitar. Sem timeout, o await travava para sempre e a tela ficava em
-// "CARREGANDO DADOS..." (o bug intermitente).
-//
-// Agora é 1 requisição só (?sheet=all), com:
-//   - AbortController (timeout duro, nunca mais spinner infinito)
-//   - retry automático com espera progressiva
+// As views são lidas em paralelo, com timeout duro e retry automático com
+// espera progressiva: nunca mais spinner infinito (ver fetchAllSupabase()).
 const FETCH_TIMEOUT_MS = 60000; // 60s
 const FETCH_RETRIES    = 3;
 
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 
-async function fetchAll(noCache) {
-  const url = APP_SCRIPT_URL + '?sheet=all' + (noCache ? '&nocache=1' : '');
+// <<SB_ADAPTER_START>>
+// ════════════════════════════════════════════
+// Monta o payload do dashboard (o mesmo formato que o antigo Apps Script devolvia)
+// a partir das views dash_* do Supabase (somente SELECT para anon).
+// Os builders abaixo são port quase 1:1 do Code.gs; as linhas chegam com as
+// mesmas chaves de coluna da planilha (ver sbRowsParaCtx). Dia sempre em
+// America/Sao_Paulo (as views já entregam `date`).
+// ════════════════════════════════════════════
+const SHEETS = {
+  CHAMADO:             'CHAMADO',
+  CHAMADO_IDX:         'CHAMADO_IDX',   // só telefones com venda (índice de atribuição)
+  CONTAGEM_DIARIA:     'CONTAGEM_DIARIA',
+  CONEXAO:             'CONEXÃO',
+  LINK:                'LINK',
+  VENDAS:              'VENDAS',
+  TRANSFERENCIAS:      'Transferências Humano',
+  CUSTOS:              'Custos',
+  FOLLOWUPS:           'f-ups',
+  FOLLOWUPS_MARCADOS:  'follow-ups_marcados',
+  CONFIG:              'Config',
+};
+const _fmtDiaBR = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+function makeCtx(sheets) {
+  const memoCache = {};
+  return {
+    rows: function (name) { return sheets[name] || []; },
+    memo: function (key, fn) {
+      if (!(key in memoCache)) memoCache[key] = fn();
+      return memoCache[key];
+    },
+  };
+}
+
+function toISODate(value) {
+  if (!value) return null;
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    if (isNaN(value.getTime())) return null;
+    return _fmtDiaBR.format(value);
+  }
+  const s = String(value).trim();
+  if (!s) return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return _fmtDiaBR.format(d);
+  return null;
+}
+function toNumber(v) {
+  if (v === '' || v === null || v === undefined) return 0;
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+function isTruthyFlag(v) {
+  if (v === true) return true;
+  if (v === false || v === null || v === undefined || v === '') return false;
+  const s = String(v).trim().toLowerCase();
+  return s === 'true' || s === 'verdadeiro' || s === 'sim' || s === '1';
+}
+function isFalsyFlagExplicit(v) {
+  if (v === false) return true;
+  if (v === '' || v === null || v === undefined) return false;
+  const s = String(v).trim().toLowerCase();
+  return s === 'false' || s === 'falso' || s === 'não' || s === 'nao' || s === '0';
+}
+function isRepeticao(v) {
+  if (v === null || v === undefined) return false;
+  const s = String(v).trim().toLowerCase();
+  return s === 'repetição' || s === 'repeticao';
+}
+function fieldStr(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).trim();
+}
+
+const GROUP_MIN_DATE = { template_name: '2026-07-07' };
+const MANUTENCAO_FIXA = [{ data: '2026-08-17', valor: 2000, descricao: 'Manutenção (valor fixo do dashboard)' }];
+const WABA_CONEXAO_LINK_MIN_DATE = '2026-08-26';
+const CONEXAO_NAO_ATRIBUIDO = 'lead não atribuído, não recebeu disparo ativamente';
+function isConexaoNaoAtribuida(valorWaba) {
+  return String(valorWaba || '').trim().toLowerCase() === CONEXAO_NAO_ATRIBUIDO;
+}
+function wabaValue(row) {
+  return fieldStr(row['waba']) || fieldStr(row['WABA']);
+}
+function isLeadNaoAtribuido(row) {
+  return isConexaoNaoAtribuida(wabaValue(row)) ||
+    ['segmentacao', 'qual_webn', 'template_name'].some(field => isConexaoNaoAtribuida(row[field]));
+}
+
+// 1) MÉTRICAS DIÁRIAS — antes vinha da aba DADOS (só fórmulas); agora é calculada.
+function getDadosDiarios(ctx) {
+  const porData = {};
+  function acc(date) {
+    if (!porData[date]) {
+      porData[date] = {
+        total: 0, naoChamados: 0, chamados: 0, conectados: 0, links: 0, vendas: 0,
+        semInteresse: 0, transferencias: 0,
+        enviadas: 0, entregues: 0, lidas: 0,
+        followupsMarcados: 0, conectadosNaoAtribuidos: 0,
+        _hasEntrega: false,
+      };
+    }
+    return porData[date];
+  }
+
+  ctx.rows(SHEETS.CONTAGEM_DIARIA).forEach(r => {
+    const date = toISODate(r.dia);
+    if (!date) return;
+    const a = acc(date), n = toNumber(r.n);
+    if (r.tabela === 'todos')              a.total        += n;
+    else if (r.tabela === 'nao_chamado')   a.naoChamados  += n;
+    else if (r.tabela === 'chamado')       a.chamados     += n;
+    else if (r.tabela === 'sem_interesse') a.semInteresse += n;
+  });
+
+  linksDeduplicados(ctx).forEach(r => {
+    const date = toISODate(r['dia_de_link']);
+    if (date) acc(date).links += 1;
+  });
+
+  // vendas = só "Sim" (exclui Repetição, falso e linha incompleta)
+  ctx.rows(SHEETS.VENDAS).forEach(r => {
+    if (fieldStr(r['venda']).toLowerCase() !== 'sim') return;
+    const date = toISODate(r['dia_de_venda']);
+    if (date) acc(date).vendas += 1;
+  });
+
+  ctx.rows(SHEETS.TRANSFERENCIAS).forEach(r => {
+    const date = toISODate(r['data']);
+    if (date) acc(date).transferencias += 1;
+  });
+
+  // Entrega: só Custos "Templates da Meta". Dia sem nenhuma linha → null.
+  ctx.rows(SHEETS.CUSTOS).forEach(r => {
+    if (String(r['Categoria'] || '').trim() !== 'Templates da Meta') return;
+    const date = toISODate(r['Data']);
+    if (!date) return;
+    const a = acc(date);
+    a._hasEntrega = true;
+    a.enviadas  += toNumber(r['Enviados']);
+    a.entregues += toNumber(r['Entregues']);
+    a.lidas     += toNumber(r['Lidos']);
+  });
+
+  const fupsMarcados = countFollowupsMarcadosPorDia(ctx);
+  Object.keys(fupsMarcados).forEach(date => { acc(date).followupsMarcados = fupsMarcados[date]; });
+
+  const conexaoPorDia = countConexaoPorDia(ctx);
+  Object.keys(conexaoPorDia).forEach(date => {
+    const a = acc(date);
+    a.conectados              = conexaoPorDia[date].conectados;
+    a.conectadosNaoAtribuidos = conexaoPorDia[date].naoAtribuidos;
+  });
+
+  // Uma linha por dia, do primeiro dado até hoje (a planilha tinha todos os dias).
+  const datas = Object.keys(porData).sort();
+  if (!datas.length) return [];
+  const hoje = _fmtDiaBR.format(new Date());
+  const fim = datas[datas.length - 1] > hoje ? datas[datas.length - 1] : hoje;
+  const out = [];
+  for (let d = new Date(datas[0] + 'T00:00:00Z'); ; d.setUTCDate(d.getUTCDate() + 1)) {
+    const date = d.toISOString().slice(0, 10);
+    if (date > fim) break;
+    const a = porData[date] || acc(date);
+    out.push({
+      date,
+      mkt: {
+        total: a.total, naoChamados: a.naoChamados, chamados: a.chamados,
+        conectados: a.conectados, links: a.links, vendas: a.vendas,
+        semInteresse: a.semInteresse, transferencias: a.transferencias,
+        enviadas:  a._hasEntrega ? a.enviadas  : null,
+        entregues: a._hasEntrega ? a.entregues : null,
+        lidas:     a._hasEntrega ? a.lidas     : null,
+        erros:     a._hasEntrega ? Math.max(0, a.chamados - a.entregues) : null,
+        followupsMarcados: a.followupsMarcados,
+        conectadosNaoAtribuidos: a.conectadosNaoAtribuidos,
+      },
+    });
+  }
+  return out;
+}
+
+// Conexão por dia_de_conexao (dia em que o lead respondeu). Inclui os não
+// atribuídos no total; o front separa via segData().
+function countConexaoPorDia(ctx) {
+  return ctx.memo('conexaoPorDia', function () {
+    const porData = {};
+    ctx.rows(SHEETS.CONEXAO).forEach(r => {
+      const date = toISODate(r['dia_de_conexao'] || r['criado_em']);
+      if (!date) return;
+      if (!porData[date]) porData[date] = { conectados: 0, naoAtribuidos: 0 };
+      porData[date].conectados += 1;
+      if (isLeadNaoAtribuido(r)) porData[date].naoAtribuidos += 1;
+    });
+    return porData;
+  });
+}
+
+// Telefones únicos por dia — a view já devolve { dia, n }.
+function countFollowupsMarcadosPorDia(ctx) {
+  return ctx.memo('fupsMarcadosPorDia', function () {
+    const porData = {};
+    ctx.rows(SHEETS.FOLLOWUPS_MARCADOS).forEach(r => {
+      const date = toISODate(r['dia']);
+      if (date) porData[date] = (porData[date] || 0) + toNumber(r['n']);
+    });
+    return porData;
+  });
+}
+
+// 2) VENDAS
+function getVendas(ctx) {
+  const out = [];
+  ctx.rows(SHEETS.VENDAS).forEach(r => {
+    if (isFalsyFlagExplicit(r['venda']) || isRepeticao(r['venda'])) return;
+    const date = toISODate(r['dia_de_venda']);
+    if (!date) return;
+    out.push({
+      date,
+      nome:     r['nome'] || '',
+      telefone: r['telefone'] ? String(r['telefone']) : '',
+      produto:  r['produto/tag'] || '',
+      segmento: r['pipeline'] || '',
+      valor:    toNumber(r['valor']),
+    });
+  });
+  return out;
+}
+
+// 3) FUNIS — por "segmentacao", "qual_webn" ou "template_name"
+function getGroupedFunil(fieldName, ctx) {
+  const buckets = {};
+  const minDate = GROUP_MIN_DATE[fieldName] || null;
+
+  function ensure(valor, date) {
+    if (minDate && date < minDate) return null;
+    const key = fieldStr(valor);
+    if (!key) return null;
+    if (!buckets[key]) buckets[key] = {};
+    if (!buckets[key][date]) {
+      buckets[key][date] = { chamados: 0, conectados: 0, links: 0, vendas: 0 };
+      if (fieldName === 'template_name') {
+        buckets[key][date].enviadas  = 0;
+        buckets[key][date].entregues = 0;
+        buckets[key][date].lidas     = 0;
+      }
+    }
+    return buckets[key][date];
+  }
+
+  // CHAMADO já vem agregado por dia × dimensões (coluna n = nº de linhas)
+  ctx.rows(SHEETS.CHAMADO).forEach(r => {
+    const date = toISODate(r['data']);
+    if (!date) return;
+    const b = ensure(r[fieldName], date);
+    if (b) b.chamados += toNumber(r['n']);
+  });
+
+  ctx.rows(SHEETS.CONEXAO).forEach(r => {
+    const date = toISODate(r['dia_de_conexao'] || r['criado_em']);
+    if (!date) return;
+    const b = ensure(r[fieldName], date);
+    if (b) b.conectados += 1;
+  });
+
+  linksDeduplicados(ctx).forEach(r => {
+    const date = toISODate(r['dia_de_link']);
+    if (!date) return;
+    const b = ensure(r[fieldName], date);
+    if (b) b.links += 1;
+  });
+
+  const fieldIndex = buildTelefoneFieldIndex(fieldName, ctx);
+  ctx.rows(SHEETS.VENDAS).forEach(r => {
+    if (isFalsyFlagExplicit(r['venda']) || isRepeticao(r['venda'])) return;
+    const date = toISODate(r['dia_de_venda']);
+    if (!date) return;
+    if (minDate && date < minDate) return;
+    const valor = lookupFieldForVenda(fieldIndex, r['telefone'], date);
+    const b = ensure(valor, date);
+    if (b) b.vendas += 1;
+  });
+
+  if (fieldName === 'template_name') {
+    ctx.rows(SHEETS.CUSTOS).forEach(r => {
+      if (String(r['Categoria'] || '').trim() !== 'Templates da Meta') return;
+      const date = toISODate(r['Data']);
+      if (!date) return;
+      const b = ensure(fieldStr(r['Descrição']), date);
+      if (!b) return;
+      b.enviadas  += toNumber(r['Enviados']);
+      b.entregues += toNumber(r['Entregues']);
+      b.lidas     += toNumber(r['Lidos']);
+    });
+  }
+
+  const out = {};
+  Object.keys(buckets).forEach(valor => {
+    out[valor] = Object.keys(buckets[valor]).sort().map(date => {
+      const b = buckets[valor][date];
+      if (fieldName === 'template_name') {
+        return { date, ...b, erros: Math.max(0, b.chamados - b.entregues) };
+      }
+      return { date, ...b, enviadas: null, entregues: null, lidas: null, erros: null };
+    });
+  });
+  return out;
+}
+
+// 3b) WABA
+function getGroupedWaba(ctx) {
+  const buckets = {};
+
+  function ensure(valor, date) {
+    const key = fieldStr(valor);
+    if (!key || isConexaoNaoAtribuida(key)) return null;
+    if (!buckets[key]) buckets[key] = {};
+    if (!buckets[key][date]) {
+      buckets[key][date] = { chamados: 0, conectados: 0, links: 0, vendas: 0, conectadosNaoAtribuidos: 0, enviadas: 0, entregues: 0 };
+    }
+    return buckets[key][date];
+  }
+
+  ctx.rows(SHEETS.CHAMADO).forEach(r => {
+    const date = toISODate(r['data']);
+    if (!date) return;
+    const b = ensure(wabaValue(r), date);
+    if (b) b.chamados += toNumber(r['n']);
+  });
+
+  ctx.rows(SHEETS.CONEXAO).forEach(r => {
+    const date = toISODate(r['dia_de_conexao'] || r['criado_em']);
+    if (!date || date < WABA_CONEXAO_LINK_MIN_DATE) return;
+    const b = ensure(wabaValue(r), date);
+    if (b) {
+      if (isLeadNaoAtribuido(r)) b.conectadosNaoAtribuidos += 1;
+      else b.conectados += 1;
+    }
+  });
+
+  linksDeduplicados(ctx).forEach(r => {
+    const date = toISODate(r['dia_de_link']);
+    if (!date || date < WABA_CONEXAO_LINK_MIN_DATE) return;
+    const b = ensure(wabaValue(r), date);
+    if (b) b.links += 1;
+  });
+
+  const wabaIndex = buildTelefoneFieldIndex('WABA', ctx);
+  ctx.rows(SHEETS.VENDAS).forEach(r => {
+    if (isFalsyFlagExplicit(r['venda']) || isRepeticao(r['venda'])) return;
+    const date = toISODate(r['dia_de_venda']);
+    if (!date || date < WABA_CONEXAO_LINK_MIN_DATE) return;
+    const entries = wabaIndex[fieldStr(r['telefone'])] || [];
+    const previous = entries.filter(entry => entry.date <= date);
+    const waba = wabaValue(r) || (previous.length ? previous[previous.length - 1].valor : '');
+    const b = ensure(waba, date);
+    if (b) b.vendas += 1;
+  });
+
+  ctx.rows(SHEETS.CUSTOS).forEach(r => {
+    if (String(r['Categoria'] || '').trim() !== 'Templates da Meta') return;
+    const date = toISODate(r['Data']);
+    if (!date) return;
+    const b = ensure(wabaValue(r), date);
+    if (!b) return;
+    b.enviadas  += toNumber(r['Enviados']);
+    b.entregues += toNumber(r['Entregues']);
+  });
+
+  const out = {};
+  Object.keys(buckets).forEach(valor => {
+    out[valor] = Object.keys(buckets[valor]).sort().map(date => {
+      const b = buckets[valor][date];
+      return {
+        date,
+        chamados: b.chamados, conectados: b.conectados, links: b.links,
+        vendas: b.vendas, conectadosNaoAtribuidos: b.conectadosNaoAtribuidos,
+        enviadas: b.enviadas, entregues: b.entregues, lidas: null,
+        erros: Math.max(0, b.chamados - b.entregues),
+      };
+    });
+  });
+  return out;
+}
+
+// Uma linha por telefone na aba LINK — a de data mais antiga.
+function linksDeduplicados(ctx) {
+  return ctx.memo('linksDedup', function () {
+    const porTelefone = {};
+    ctx.rows(SHEETS.LINK).forEach(r => {
+      const telefone = fieldStr(r['telefone']);
+      if (!telefone) return;
+      const date = toISODate(r['dia_de_link']);
+      if (!date) return;
+      const atual = porTelefone[telefone];
+      if (!atual || date < atual.date) porTelefone[telefone] = { row: r, date };
+    });
+    return Object.keys(porTelefone).map(tel => porTelefone[tel].row);
+  });
+}
+
+function buildTelefoneFieldIndex(fieldName, ctx) {
+  return ctx.memo('telIndex:' + fieldName, function () {
+    const index = {};
+
+    function addFrom(sheetName, dateFieldNames) {
+      ctx.rows(sheetName).forEach(r => {
+        const telefone = fieldStr(r['telefone']);
+        if (!telefone) return;
+        const valor = fieldName === 'WABA' ? wabaValue(r) : fieldStr(r[fieldName]);
+        if (!valor) return;
+        let date = null;
+        for (let i = 0; i < dateFieldNames.length; i++) {
+          date = toISODate(r[dateFieldNames[i]]);
+          if (date) break;
+        }
+        if (!date) return;
+        if (!index[telefone]) index[telefone] = [];
+        index[telefone].push({ date, valor });
+      });
+    }
+
+    addFrom(SHEETS.CHAMADO_IDX, ['data']);
+    addFrom(SHEETS.CONEXAO, ['criado_em', 'dia_de_conexao']);
+    addFrom(SHEETS.LINK,    ['dia_de_link']);
+
+    Object.keys(index).forEach(tel => {
+      index[tel].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    });
+    return index;
+  });
+}
+
+function lookupFieldForVenda(index, telefone, dataVenda) {
+  const entries = index[fieldStr(telefone)];
+  if (!entries || !entries.length) return '';
+  let best = null;
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i].date <= dataVenda) best = entries[i];
+    else break;
+  }
+  if (!best) best = entries[0];
+  return best.valor;
+}
+
+// 4) TRANSFERÊNCIAS
+function getTransferencias(ctx) {
+  const out = [];
+  ctx.rows(SHEETS.TRANSFERENCIAS).forEach(r => {
+    const date = toISODate(r['data']);
+    if (!date) return;
+    out.push({
+      date,
+      nome:          r['nome'] || '',
+      telefone:      r['telefone'] ? String(r['telefone']) : '',
+      motivo:        r['motivo'] || '',
+      mandouSuporte: isTruthyFlag(r['mandou_suporte']),
+    });
+  });
+  return out;
+}
+
+// 5) CUSTOS
+function getCustos(ctx) {
+  const out = [];
+  ctx.rows(SHEETS.CUSTOS).forEach(r => {
+    const date = toISODate(r['Data']);
+    if (!date) return;
+    out.push({
+      date,
+      categoria: r['Categoria'] || 'Outros',
+      descricao: r['Descrição'] || '',
+      valor:     toNumber(r['Valor']),
+    });
+  });
+  return out;
+}
+
+// 5b) ROI
+const CUSTO_CATEGORIA_BUCKET = {
+  'templates da meta':       'templates',
+  'meta':                    'templates',
+  'tokens - openai':         'tokens',
+  'tokens - openrouter':     'tokens',
+  'openrouter':              'tokens',
+  'implementação':           'implementacao',
+  'implementacao':           'implementacao',
+  'manutenção':              'salario',
+  'manutencao':              'salario',
+};
+const CUSTO_CATEGORIA_COMISSAO = 'comissões';
+const ROI_DEFAULT_TAXA_LIQUIDO = 0.93;
+const ROI_DEFAULT_FAIXAS = [
+  { meta: 'Fraca',        piso: 0,     teto: 30000, percentual: 0.05 },
+  { meta: 'Média fraca',  piso: 30000, teto: 50000, percentual: 0.06 },
+  { meta: 'Média forte',  piso: 50000, teto: 65000, percentual: 0.07 },
+  { meta: 'Forte',        piso: 65000, teto: null,  percentual: 0.08 },
+];
+
+// Tabela `config` (dash_config): linha taxa_liquido (chave/valor) e as faixas
+// (meta/piso/teto/percentual). Sem config, cai nos padrões.
+function getConfig(ctx) {
+  return ctx.memo('config', function () {
+    const raw = ctx.rows(SHEETS.CONFIG);
+    if (!raw.length) {
+      console.warn('Config vazia — usando taxa_liquido e faixas padrão.');
+      return { taxaLiquido: ROI_DEFAULT_TAXA_LIQUIDO, faixas: ROI_DEFAULT_FAIXAS };
+    }
+    let taxaLiquido = null;
+    raw.forEach(r => {
+      if (taxaLiquido === null && String(r['chave'] || '').trim().toLowerCase() === 'taxa_liquido') taxaLiquido = toNumber(r['valor']);
+    });
+    if (!taxaLiquido) taxaLiquido = ROI_DEFAULT_TAXA_LIQUIDO;
+
+    const faixas = [];
+    raw.forEach(r => {
+      const meta = String(r['meta'] || '').trim();
+      if (!meta) return;
+      const tetoRaw = r['teto'];
+      faixas.push({
+        meta,
+        piso: toNumber(r['piso']),
+        teto: (tetoRaw === '' || tetoRaw === null || tetoRaw === undefined) ? null : toNumber(tetoRaw),
+        percentual: toNumber(r['percentual']),
+      });
+    });
+    if (!faixas.length) return { taxaLiquido, faixas: ROI_DEFAULT_FAIXAS };
+    faixas.sort((a, b) => a.piso - b.piso);
+    return { taxaLiquido, faixas };
+  });
+}
+
+function findFaixa(faixas, fl) {
+  for (let i = 0; i < faixas.length; i++) {
+    const f = faixas[i];
+    if (fl >= f.piso && (f.teto === null || fl < f.teto)) return f;
+  }
+  return faixas[faixas.length - 1];
+}
+
+function novoBucketCusto() {
+  return { templates: 0, tokens: 0, implementacao: 0, salario: 0, outros: 0 };
+}
+
+function mesAnterior(mes) {
+  const [y, m] = mes.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1, 1));
+  d.setUTCMonth(d.getUTCMonth() - 1);
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+}
+
+// Inclui "Sim" E "Repetição" (receita real); só descarta falso/0 ou sem data.
+function getVendasParaRoi(ctx) {
+  const out = [];
+  ctx.rows(SHEETS.VENDAS).forEach(r => {
+    if (isFalsyFlagExplicit(r['venda'])) return;
+    const date = toISODate(r['dia_de_venda']);
+    if (!date) return;
+    out.push({ date, valor: toNumber(r['valor']) });
+  });
+  return out;
+}
+
+function getRoi(ctx) {
+  const { taxaLiquido, faixas } = getConfig(ctx);
+
+  const fbPorMes = {};
+  getVendasParaRoi(ctx).forEach(v => {
+    const mes = v.date.slice(0, 7);
+    fbPorMes[mes] = (fbPorMes[mes] || 0) + v.valor;
+  });
+
+  const crPorMes = {};
+  const bucketPorMes = {};
+  const comissaoRealPorMes = {};
+  let custosIgnorados = 0;
+
+  ctx.rows(SHEETS.CUSTOS).forEach(r => {
+    const date = toISODate(r['Data']);
+    const valorRaw = r['Valor'];
+    const temValor = valorRaw !== '' && valorRaw !== null && valorRaw !== undefined;
+    if (!date || !temValor) { custosIgnorados++; return; }
+
+    const valor = toNumber(valorRaw);
+    const mes = date.slice(0, 7);
+    const categoriaKey = String(r['Categoria'] || '').trim().toLowerCase();
+
+    if (categoriaKey === CUSTO_CATEGORIA_COMISSAO) {
+      const mesReferencia = mesAnterior(mes);
+      comissaoRealPorMes[mesReferencia] = (comissaoRealPorMes[mesReferencia] || 0) + valor;
+      return;
+    }
+
+    crPorMes[mes] = (crPorMes[mes] || 0) + valor;
+    if (!bucketPorMes[mes]) bucketPorMes[mes] = novoBucketCusto();
+    const bucket = CUSTO_CATEGORIA_BUCKET[categoriaKey] || 'outros';
+    bucketPorMes[mes][bucket] += valor;
+  });
+
+  const mesAtual = _fmtDiaBR.format(new Date()).slice(0, 7);
+  const todosMeses = new Set([
+    ...Object.keys(fbPorMes),
+    ...Object.keys(crPorMes),
+    ...Object.keys(comissaoRealPorMes),
+  ]);
+
+  const meses = Array.from(todosMeses).sort().map(mes => {
+    const fb = fbPorMes[mes] || 0;
+    const fl = fb * taxaLiquido;
+    const faixa = findFaixa(faixas, fl);
+    const comissaoCalculada = fl * faixa.percentual;
+    const comissaoLancada = comissaoRealPorMes[mes] !== undefined;
+    const comissao = comissaoLancada ? comissaoRealPorMes[mes] : comissaoCalculada;
+
+    const cr = crPorMes[mes] || 0;
+    const ct = cr + comissao;
+    const roiMultiplo   = ct > 0 ? fl / ct : null;
+    const roiPercentual = ct > 0 ? (fl - ct) / ct : null;
+
+    const idxFaixa = faixas.indexOf(faixa);
+    const proximaFaixa = faixas[idxFaixa + 1] || null;
+    const faltaProximaFaixa = proximaFaixa ? Math.max(0, proximaFaixa.piso - fl) : null;
+
+    return {
+      mes,
+      faturamento_bruto:    fb,
+      faturamento_liquido:  fl,
+      faixa:                faixa.meta,
+      percentual_comissao:  faixa.percentual,
+      comissao,
+      comissao_lancada:     comissaoLancada,
+      custos_registrados:   cr,
+      custos_por_categoria: bucketPorMes[mes] || novoBucketCusto(),
+      custo_total:          ct,
+      roi_multiplo:         roiMultiplo,
+      roi_percentual:       roiPercentual,
+      proxima_faixa:        proximaFaixa ? proximaFaixa.meta : null,
+      falta_proxima_faixa:  faltaProximaFaixa,
+      em_andamento:         mes === mesAtual,
+    };
+  });
+
+  return {
+    config: { taxa_liquido: taxaLiquido },
+    meses,
+    custos_ignorados: custosIgnorados,
+  };
+}
+
+// 6) FOLLOW-UPS
+function getFollowups(ctx) {
+  const out = [];
+  ctx.rows(SHEETS.FOLLOWUPS).forEach(r => {
+    const date = toISODate(r['dia_de_fup']);
+    if (!date) return;
+    out.push({
+      date,
+      nome:            r['nome'] || '',
+      telefone:        r['telefone'] ? String(r['telefone']) : '',
+      tipo:            String(r['f-up'] || '').trim().toUpperCase(),
+      respondido:      isTruthyFlag(r['respondido']),
+      horarioResposta: r['horario_resposta'] ? String(r['horario_resposta']) : null,
+    });
+  });
+  return out;
+}
+
+// Linhas das views dash_* → mesmas chaves de coluna da planilha.
+function sbRowsParaCtx(v) {
+  const s = {};
+  s[SHEETS.CONTAGEM_DIARIA] = v.contagem;
+  s[SHEETS.CHAMADO] = v.chamadoAgg.map(r => ({
+    data: r.dia, segmentacao: r.segmentacao, qual_webn: r.qual_webn,
+    template_name: r.template_name, waba: r.waba, n: r.n,
+  }));
+  s[SHEETS.CHAMADO_IDX] = v.chamadoIdx.map(r => ({
+    telefone: r.tel, data: r.dia, segmentacao: r.segmentacao, qual_webn: r.qual_webn,
+    template_name: r.template_name, waba: r.waba,
+  }));
+  s[SHEETS.CONEXAO] = v.conexao.map(r => ({
+    telefone: r.tel, criado_em: r.criado_dia, dia_de_conexao: r.dia,
+    segmentacao: r.segmentacao, qual_webn: r.qual_webn, template_name: r.template_name, waba: r.waba,
+  }));
+  s[SHEETS.LINK] = v.link.map(r => ({
+    telefone: r.tel, dia_de_link: r.dia, segmentacao: r.segmentacao, qual_webn: r.qual_webn,
+    template_name: r.template_name, waba: r.waba,
+  }));
+  s[SHEETS.VENDAS] = v.vendas.map(r => ({
+    nome: r.nome, telefone: r.tel, dia_de_venda: r.dia, pipeline: r.pipeline,
+    'produto/tag': r.produto, valor: r.valor, venda: r.venda,
+  }));
+  s[SHEETS.TRANSFERENCIAS] = v.transf.map(r => ({
+    nome: r.nome, telefone: r.telefone, data: r.dia, motivo: r.motivo, mandou_suporte: r.mandou_suporte,
+  }));
+  s[SHEETS.CUSTOS] = v.custos.map(r => ({
+    Data: r.dia, Categoria: r.categoria, 'Descrição': r.descricao,
+    Valor: (r.valor === null || r.valor === undefined) ? '' : r.valor,
+    Enviados: r.enviados, Entregues: r.entregues, Lidos: r.lidos, WABA: r.waba,
+  }));
+  // Manutenção é custo fixo (R$ 2.000/ciclo, pago ~dia 15) que não está na tabela
+  // Custos do banco. Se não houver lançamento real no mesmo ciclo de pagamento,
+  // entra este valor; lançamentos reais na tabela passam a valer no lugar. Os
+  // ciclos seguintes herdam o último valor (ver computeRoiParaIntervalo).
+  MANUTENCAO_FIXA.forEach(m => {
+    const ciclo = cicloDoPagamentoManutencao(m.data);
+    const jaLancada = s[SHEETS.CUSTOS].some(c => /^manuten[cç]ão$|^manutencao$/i.test(String(c.Categoria || '').trim()) &&
+      c.Data && cicloDoPagamentoManutencao(c.Data) === ciclo);
+    if (!jaLancada) s[SHEETS.CUSTOS].push({ Data: m.data, Categoria: 'Manutenção', 'Descrição': m.descricao, Valor: m.valor, Enviados: null, Entregues: null, Lidos: null, WABA: '' });
+  });
+  s[SHEETS.FOLLOWUPS] = v.fups.map(r => ({
+    nome: r.nome, telefone: r.telefone, dia_de_fup: r.dia, 'f-up': r.tipo,
+    respondido: r.respondido, horario_resposta: r.horario_resposta,
+  }));
+  s[SHEETS.FOLLOWUPS_MARCADOS] = v.fupMarcados;
+  s[SHEETS.CONFIG] = v.config;
+  return s;
+}
+
+function montarPayloadSupabase(v) {
+  const ctx = makeCtx(sbRowsParaCtx(v));
+  return {
+    ok: true,
+    generatedAt:    new Date().toISOString(),
+    dados:          getDadosDiarios(ctx),
+    vendas:         getVendas(ctx),
+    vendasRoi:      getVendasParaRoi(ctx),
+    segmentacoes:   getGroupedFunil('segmentacao',   ctx),
+    qualwebn:       getGroupedFunil('qual_webn',     ctx),
+    templates:      getGroupedFunil('template_name', ctx),
+    waba:           getGroupedWaba(ctx),
+    transferencias: getTransferencias(ctx),
+    custos:         getCustos(ctx),
+    followups:      getFollowups(ctx),
+    roi:            getRoi(ctx),
+  };
+}
+
+async function fetchAllSupabaseUmaVez() {
+  const [contagem, chamadoAgg, chamadoIdx, conexao, link, vendas, transf, custos, fups, fupMarcados, config] = await Promise.all([
+    sbFetch('dash_contagem_diaria?select=*&order=dia.asc,tabela.asc'),
+    sbFetch('dash_chamado_agg?select=*&order=dia.asc,segmentacao.asc,qual_webn.asc,template_name.asc,waba.asc'),
+    sbFetch('dash_chamado_vendas?select=*&order=id.asc'),
+    sbFetch('dash_conexao?select=*&order=id.asc'),
+    sbFetch('dash_link?select=*&order=id.asc'),
+    sbFetch('dash_vendas?select=*&order=id.asc'),
+    sbFetch('dash_transferencias?select=*&order=id.asc'),
+    sbFetch('dash_custos?select=*&order=id.asc'),
+    sbFetch('dash_followups?select=*&order=id.asc'),
+    sbFetch('dash_followups_marcados_diario?select=*&order=dia.asc'),
+    sbFetch('dash_config?select=*'),
+  ]);
+  return montarPayloadSupabase({ contagem, chamadoAgg, chamadoIdx, conexao, link, vendas, transf, custos, fups, fupMarcados, config });
+}
+
+// Mesmo contrato do fetch antigo: timeout duro + retry, nunca spinner infinito.
+async function fetchAllSupabase() {
   let lastErr = null;
   for (let tentativa = 1; tentativa <= FETCH_RETRIES; tentativa++) {
-    const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     try {
-      const r = await fetch(url, { signal: ctrl.signal, redirect: 'follow' });
-      clearTimeout(timer);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
-      if (data && data.ok === false) throw new Error(data.msg || 'Erro no backend');
-      return data;
+      let timer;
+      const limite = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('Tempo esgotado ao buscar no Supabase')), FETCH_TIMEOUT_MS); });
+      try { return await Promise.race([fetchAllSupabaseUmaVez(), limite]); }
+      finally { clearTimeout(timer); }
     } catch (err) {
-      clearTimeout(timer);
       lastErr = err;
       if (tentativa < FETCH_RETRIES) await sleep(1500 * tentativa);
     }
   }
   throw lastErr || new Error('Falha desconhecida');
 }
+// <<SB_ADAPTER_END>>
 
 // Distribui o payload único nas variáveis de estado do dashboard.
 function aplicarPayload(p) {
@@ -1241,23 +1980,18 @@ function aplicarPayload(p) {
 async function sincronizarVendas() {
   const btn = document.getElementById('btnSync');
   btn.classList.add('loading');
+  // A classificação Sim/Repetição é calculada na view dash_vendas (sem escrita):
+  // o botão só recarrega os dados e recalcula.
   try {
-    const r = await fetch(APP_SCRIPT_URL, { method:'POST', body:JSON.stringify({ action:'classificarVendas' }) });
-    const data = await r.json();
+    aplicarPayload(await fetchAllSupabase());
+    refreshAll();
     btn.classList.remove('loading');
-    if (data.ok) {
-      btn.classList.add('success');
-      showToast('Vendas reclassificadas com sucesso!', 'success');
-      // nocache=1: a reclassificação acabou de mudar a planilha, então
-      // buscamos dados frescos em vez do que estiver cacheado.
-      try { aplicarPayload(await fetchAll(true)); refreshAll(); } catch(e) {}
-      setTimeout(() => btn.classList.remove('success'), 3000);
-    } else {
-      showToast('Erro: ' + (data.msg || 'Resposta inesperada'), 'error');
-    }
-  } catch(err) {
+    btn.classList.add('success');
+    showToast('Vendas recalculadas com sucesso!', 'success');
+    setTimeout(() => btn.classList.remove('success'), 3000);
+  } catch (err) {
     btn.classList.remove('loading');
-    showToast('Falha na requisição.', 'error');
+    showToast('Falha ao recalcular: ' + (err && err.message ? err.message : err), 'error');
   }
 }
 // ════════════════════════════════════════════
@@ -1268,11 +2002,10 @@ function setStatus(s) {
   const lbl = document.getElementById('statusLabel');
   const styles = {
     online:'background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;',
-    csv:   'background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 2s infinite;',
     error: 'background:var(--danger);box-shadow:0 0 8px rgba(192,57,43,.5);',
   };
   dot.style.cssText = 'width:7px;height:7px;border-radius:50%;' + (styles[s] || '');
-  lbl.textContent = {online:'AO VIVO', csv:'CSV PÚBLICO', error:'ERRO'}[s] || '—';
+  lbl.textContent = {online:'AO VIVO', error:'ERRO'}[s] || '—';
 }
 function showError(detalhe) {
   const overlay = document.getElementById('loadingOverlay');
@@ -1280,7 +2013,7 @@ function showError(detalhe) {
   overlay.innerHTML = `
     <div class="error-box"><h3>ERRO AO CARREGAR</h3>
     <p>${detalhe || 'Não foi possível buscar os dados.'}<br><br>
-    Verifique se o App Script está publicado como "Qualquer pessoa" e se a URL em APP_SCRIPT_URL está correta.</p></div>`;
+    Verifique a conexão e se as views dash_* do Supabase estão acessíveis.</p></div>`;
 }
 function getFiltered() {
   const from = document.getElementById('dateFrom').value;
@@ -1583,7 +2316,7 @@ function sumF(rows, field) {
 }
 const fN   = v => v === null ? null : Math.round(v).toLocaleString('pt-BR');
 const fBRL = v => v === null ? null : v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-const fP   = v => v === null ? null : v.toFixed(1) + '%';
+const fP   = v => v === null ? null : v.toFixed(2) + '%';
 const fD   = d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
 const fMes = m => { const [y, mm] = m.split('-'); return mm + '/' + y; };
 const fX   = v => v === null || v === undefined ? '—' : v.toFixed(2).replace('.', ',') + 'x';
@@ -1778,7 +2511,7 @@ function renderFunilChart(rows) {
     type:'line', data:{labels,datasets},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,
-        callbacks:{label:ctx=>{const m=cfg.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(1)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},
+        callbacks:{label:ctx=>{const m=cfg.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(2)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},
       scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},
         yNum:{type:'linear',position:'left',ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
         yPct:{type:'linear',position:'right',ticks:{color:'#7E8E83',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}}}}
@@ -1801,7 +2534,7 @@ function renderFunnelInto(containerId, agg) {
     if (i > 0) { const conn = document.createElement('div'); conn.className = 'funnel-connector'; c.appendChild(conn); }
     const el = document.createElement('div'); el.className = 'funnel-step';
     const rel = i===0 ? '100%' : (s.value/mx*100).toFixed(0)+'%';
-    const pct = i===0 ? '100%' : (s.value/steps[0].value*100).toFixed(1)+'%';
+    const pct = i===0 ? '100%' : (s.value/steps[0].value*100).toFixed(2)+'%';
     el.innerHTML = `<div class="funnel-bar-wrap"><div class="funnel-bar-bg"></div><div class="funnel-bar-fill" style="width:0%"></div><div class="funnel-bar-text"><span class="funnel-step-name">${s.label}</span><span class="funnel-step-val">${Math.round(s.value).toLocaleString('pt-BR')}</span></div></div><div class="funnel-pct">${pct}</div>`;
     c.appendChild(el);
     setTimeout(() => el.querySelector('.funnel-bar-fill').style.width = rel, 50+i*80);
@@ -1878,7 +2611,7 @@ function renderTableCell(col, v) {
   if (v === null || v === undefined) return `<td class="val-na">—</td>`;
   if (col.format === 'pct') {
     const s = getPctColor(col.key, v);
-    return `<td style="${s}">${v.toFixed(1)}%</td>`;
+    return `<td style="${s}">${v.toFixed(2)}%</td>`;
   }
   const cls = col.key==='vendas' ? 'val-green' : col.key==='erros' ? 'val-red' : '';
   return `<td class="${cls}">${Math.round(v).toLocaleString('pt-BR')}</td>`;
@@ -1888,7 +2621,7 @@ function renderTableFootCell(col, v) {
   if (v === null || v === undefined) return `<td>—</td>`;
   if (col.format === 'pct') {
     const s = getPctColor(col.key, v);
-    return `<td style="${s}">${v.toFixed(1)}%</td>`;
+    return `<td style="${s}">${v.toFixed(2)}%</td>`;
   }
   const cls = col.key==='vendas' ? 'val-green' : col.key==='erros' ? 'val-red' : '';
   return `<td class="${cls}">${Math.round(v).toLocaleString('pt-BR')}</td>`;
@@ -1921,7 +2654,7 @@ function renderChart(rows) {
   });
   const datasets=METRICS_CONFIG.filter(m=>metricVis[m.key]).map(m=>({label:m.label,data:series(m.key),borderColor:METRIC_COLORS[m.key],backgroundColor:METRIC_COLORS[m.key]+'18',borderWidth:2,pointRadius:rows.length>60?0:3,pointHoverRadius:5,tension:0.35,fill:false,yAxisID:m.format==='pct'?'yPct':'yNum',spanGaps:true}));
   if (lineChart) lineChart.destroy();
-  lineChart=new Chart(document.getElementById('lineChart').getContext('2d'),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,callbacks:{label:ctx=>{const m=METRICS_CONFIG.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(1)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},yNum:{type:'linear',position:'left',ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},yPct:{type:'linear',position:'right',ticks:{color:'#7E8E83',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}}}}});
+  lineChart=new Chart(document.getElementById('lineChart').getContext('2d'),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#17231C',borderColor:'#33453A',borderWidth:1,titleColor:'#EDE8D8',bodyColor:'#B7C2B9',padding:12,callbacks:{label:ctx=>{const m=METRICS_CONFIG.find(x=>x.label===ctx.dataset.label);const v=ctx.parsed.y;if(v===null||v===undefined)return ctx.dataset.label+': —';return ctx.dataset.label+': '+(m?.format==='pct'?v.toFixed(2)+'%':Math.round(v).toLocaleString('pt-BR'));}}}},scales:{x:{ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10},maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}},yNum:{type:'linear',position:'left',ticks:{color:'#5C6B61',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},yPct:{type:'linear',position:'right',ticks:{color:'#7E8E83',font:{family:'JetBrains Mono',size:10},callback:v=>v.toFixed(0)+'%'},grid:{drawOnChartArea:false}}}}});
 }
 // ════════════════════════════════════════════
 // VENDAS
@@ -3070,8 +3803,8 @@ async function refreshFunilClara() {
 // ════════════════════════════════════════════
 async function init() {
   try {
-    aplicarPayload(await fetchAll(false));
-    setStatus('csv');
+    aplicarPayload(await fetchAllSupabase());
+    setStatus('online');
   } catch (err) {
     setStatus('error');
     showError('Não foi possível buscar os dados após ' + FETCH_RETRIES + ' tentativas.<br><span style="opacity:.7;font-size:11px;">' + (err && err.message ? err.message : err) + '</span>');
@@ -3081,7 +3814,7 @@ async function init() {
   // anterior o overlay era escondido primeiro (display:none) e só depois
   // showError() escrevia dentro dele — como já estava invisível, a
   // mensagem nunca aparecia e a tela parecia travada sem explicação.
-  if (!allData.length) { showError('A planilha respondeu, mas não veio nenhuma linha na aba DADOS.'); return; }
+  if (!allData.length) { showError('O Supabase respondeu, mas não veio nenhum dado diário.'); return; }
   document.getElementById('loadingOverlay').style.display = 'none';
   setDefaultDates();
   document.querySelectorAll('.main-tab').forEach(btn => {
